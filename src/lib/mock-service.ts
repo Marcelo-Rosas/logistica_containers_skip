@@ -1,5 +1,11 @@
 /* Mock service to simulate data fetching and operations */
-import { Client, Container, Allocation, ActivityLog } from './types'
+import {
+  Client,
+  Container,
+  Allocation,
+  ActivityLog,
+  DashboardStats,
+} from './types'
 
 // Initial Data (Mutable to allow updates during session)
 let clients: Client[] = [
@@ -43,48 +49,93 @@ let clients: Client[] = [
 let containers: Container[] = [
   {
     id: '101',
-    codigo: 'CONT-A001',
+    codigo: 'CMAU3754293',
+    bl_number: '06BRZ2311002',
     capacidade: '20ft',
-    status: 'Ocupado',
+    tipo: "Dry Box 20'",
+    status: 'Ativo',
+    occupancy_rate: 85,
+    sku_count: 12,
+    total_volume_m3: 28.5,
+    total_weight_kg: 12500,
     created_at: '2022-11-01',
     cliente_id: '1',
+    cliente_nome: 'Importadora Global S.A.',
+    arrival_date: '2022-11-01',
   },
   {
     id: '102',
-    codigo: 'CONT-A002',
+    codigo: 'MSKU9012345',
+    bl_number: '06BRZ2311005',
     capacidade: '40ft',
-    status: 'Disponível',
+    tipo: "Dry Box 40'",
+    status: 'Vazio',
+    occupancy_rate: 0,
+    sku_count: 0,
+    total_volume_m3: 0,
+    total_weight_kg: 0,
     created_at: '2022-11-01',
+    arrival_date: '2022-11-05',
   },
   {
     id: '103',
-    codigo: 'CONT-B101',
+    codigo: 'HLBU5678901',
+    bl_number: '06BRZ2311008',
     capacidade: '20ft',
+    tipo: "Dry Box 20'",
     status: 'Manutenção',
+    occupancy_rate: 0,
+    sku_count: 0,
+    total_volume_m3: 0,
+    total_weight_kg: 0,
     created_at: '2022-12-05',
+    arrival_date: '2022-12-05',
   },
   {
     id: '104',
-    codigo: 'CONT-B102',
-    capacidade: '40ft',
-    status: 'Ocupado',
+    codigo: 'MEDU2345678',
+    bl_number: '06BRZ2311012',
+    capacidade: '40ft HC',
+    tipo: "Dry Box 40' HC",
+    status: 'Parcial',
+    occupancy_rate: 45,
+    sku_count: 8,
+    total_volume_m3: 35.2,
+    total_weight_kg: 8400,
     created_at: '2023-01-10',
     cliente_id: '3',
+    cliente_nome: 'Agro Exportadora',
+    arrival_date: '2023-01-10',
   },
   {
     id: '105',
-    codigo: 'CONT-C201',
+    codigo: 'COSU3456789',
+    bl_number: '06BRZ2311015',
     capacidade: '20ft',
-    status: 'Ocupado',
+    tipo: "Dry Box 20'",
+    status: 'Cheio',
+    occupancy_rate: 98,
+    sku_count: 24,
+    total_volume_m3: 32.8,
+    total_weight_kg: 21000,
     created_at: '2023-02-15',
     cliente_id: '2',
+    cliente_nome: 'Tech Solutions Ltda',
+    arrival_date: '2023-02-15',
   },
   {
     id: '106',
-    codigo: 'CONT-C202',
+    codigo: 'ONEY4567890',
+    bl_number: '06BRZ2311018',
     capacidade: '40ft',
-    status: 'Disponível',
+    tipo: "Dry Box 40'",
+    status: 'Pendente',
+    occupancy_rate: 10,
+    sku_count: 2,
+    total_volume_m3: 5.0,
+    total_weight_kg: 1200,
     created_at: '2023-03-20',
+    arrival_date: '2023-03-20',
   },
 ]
 
@@ -92,7 +143,7 @@ let allocations: Allocation[] = [
   {
     id: 'a1',
     container_id: '101',
-    container_code: 'CONT-A001',
+    container_code: 'CMAU3754293',
     cliente_id: '1',
     cliente_nome: 'Importadora Global S.A.',
     data_entrada: '2023-10-01',
@@ -103,7 +154,7 @@ let allocations: Allocation[] = [
   {
     id: 'a2',
     container_id: '104',
-    container_code: 'CONT-B102',
+    container_code: 'MEDU2345678',
     cliente_id: '3',
     cliente_nome: 'Agro Exportadora',
     data_entrada: '2023-11-15',
@@ -111,41 +162,18 @@ let allocations: Allocation[] = [
     created_at: '2023-11-15',
     status: 'Ativo',
   },
-  {
-    id: 'a3',
-    container_id: '105',
-    container_code: 'CONT-C201',
-    cliente_id: '2',
-    cliente_nome: 'Tech Solutions Ltda',
-    data_entrada: '2023-12-05',
-    custo_mensal: 550,
-    created_at: '2023-12-05',
-    status: 'Ativo',
-  },
-  {
-    id: 'a4',
-    container_id: '102',
-    container_code: 'CONT-A002',
-    cliente_id: '4',
-    cliente_nome: 'Logística Rápida',
-    data_entrada: '2023-09-01',
-    data_saida: '2023-12-01',
-    custo_mensal: 900,
-    created_at: '2023-09-01',
-    status: 'Finalizado',
-  },
 ]
 
 let recentActivity: ActivityLog[] = [
   {
     id: '1',
-    message: 'Container [CONT-A001] entrou para Importadora Global S.A.',
+    message: 'Container [CMAU3754293] entrou para Importadora Global S.A.',
     timestamp: '2h atrás',
     type: 'info',
   },
   {
     id: '2',
-    message: 'Custo de saída calculado para [CONT-A002]',
+    message: 'Custo de saída calculado para [MSKU9012345]',
     timestamp: '5h atrás',
     type: 'success',
   },
@@ -164,20 +192,56 @@ export const getAllocations = async () => Promise.resolve([...allocations])
 export const getRecentActivity = async () =>
   Promise.resolve([...recentActivity])
 
-export const getDashboardStats = async () => {
+export const getDashboardStats = async (): Promise<DashboardStats> => {
   const activeAllocations = allocations.filter(
     (a) => a.status === 'Ativo',
   ).length
-  const occupiedContainers = containers.filter(
-    (c) => c.status === 'Ocupado',
-  ).length
+
+  // Calculate average occupancy of non-empty containers
+  const occupiedContainers = containers.filter((c) => c.occupancy_rate > 0)
+  const totalOccupancy = occupiedContainers.reduce(
+    (acc, curr) => acc + curr.occupancy_rate,
+    0,
+  )
   const occupancyRate =
-    containers.length > 0
-      ? Math.round((occupiedContainers / containers.length) * 100)
+    occupiedContainers.length > 0
+      ? Math.round(totalOccupancy / occupiedContainers.length)
       : 0
+
   const activeClients = new Set(
     allocations.filter((a) => a.status === 'Ativo').map((a) => a.cliente_id),
   ).size
+
+  const statusCount = containers.reduce(
+    (acc, curr) => {
+      acc[curr.status] = (acc[curr.status] || 0) + 1
+      return acc
+    },
+    {} as Record<string, number>,
+  )
+
+  const statusDistribution = [
+    {
+      status: 'Ativo',
+      count: (statusCount['Ativo'] || 0) + (statusCount['Cheio'] || 0),
+      fill: 'var(--color-ativo)',
+    },
+    {
+      status: 'Parcial',
+      count: statusCount['Parcial'] || 0,
+      fill: 'var(--color-parcial)',
+    },
+    {
+      status: 'Vazio',
+      count: statusCount['Vazio'] || 0,
+      fill: 'var(--color-vazio)',
+    },
+    {
+      status: 'Pendente',
+      count: statusCount['Pendente'] || 0,
+      fill: 'var(--color-pendente)',
+    },
+  ]
 
   return Promise.resolve({
     activeAllocations,
@@ -185,7 +249,41 @@ export const getDashboardStats = async () => {
     activeClients,
     pendingExitCosts: 12500.0, // Hardcoded for simplicity
     nextBillingDate: '01/02/2026',
+    statusDistribution,
   })
+}
+
+export const createContainer = async (data: any) => {
+  const client = clients.find((c) => c.id === data.cliente_id)
+
+  const newContainer: Container = {
+    id: `c${Date.now()}`,
+    codigo: data.codigo,
+    bl_number: data.bl_number,
+    capacidade: data.tipo?.includes('40') ? '40ft' : '20ft',
+    tipo: data.tipo,
+    status: 'Pendente',
+    occupancy_rate: 0,
+    sku_count: 0,
+    total_volume_m3: 0,
+    total_weight_kg: 0,
+    created_at: new Date().toISOString(),
+    cliente_id: client?.id,
+    cliente_nome: client?.nome,
+    arrival_date: data.arrival_date,
+    storage_start_date: data.storage_start_date,
+  }
+
+  containers.unshift(newContainer)
+
+  recentActivity.unshift({
+    id: `log${Date.now()}`,
+    message: `Novo container registrado: ${newContainer.codigo}`,
+    timestamp: 'Agora',
+    type: 'info',
+  })
+
+  return Promise.resolve(newContainer)
 }
 
 export const registerEntry = async (data: {
@@ -223,8 +321,9 @@ export const registerEntry = async (data: {
   if (containerIndex >= 0) {
     containers[containerIndex] = {
       ...containers[containerIndex],
-      status: 'Ocupado',
+      status: 'Ativo',
       cliente_id: client.id,
+      cliente_nome: client.nome,
     }
   }
 
@@ -262,8 +361,13 @@ export const registerExit = async (id: string, dataSaida: Date) => {
   if (containerIndex >= 0) {
     containers[containerIndex] = {
       ...containers[containerIndex],
-      status: 'Disponível',
+      status: 'Vazio',
       cliente_id: undefined,
+      cliente_nome: undefined,
+      occupancy_rate: 0,
+      sku_count: 0,
+      total_volume_m3: 0,
+      total_weight_kg: 0,
     }
   }
 
@@ -288,6 +392,35 @@ export const registerExit = async (id: string, dataSaida: Date) => {
     success: true,
     message: 'Saída registrada e custos calculados!',
   })
+}
+
+export const processRemoval = async (
+  containerId: string,
+  sku: string,
+  qty: number,
+) => {
+  const container = containers.find((c) => c.id === containerId)
+  if (!container) throw new Error('Container not found')
+
+  // Mock update logic
+  const containerIndex = containers.findIndex((c) => c.id === containerId)
+  if (containerIndex >= 0) {
+    const newOccupancy = Math.max(0, container.occupancy_rate - 5) // reduce by 5% mock
+    containers[containerIndex] = {
+      ...containers[containerIndex],
+      occupancy_rate: newOccupancy,
+      status: newOccupancy === 0 ? 'Vazio' : 'Parcial',
+    }
+  }
+
+  recentActivity.unshift({
+    id: `log${Date.now()}`,
+    message: `Remoção parcial: ${qty}x ${sku} de ${container.codigo}`,
+    timestamp: 'Agora',
+    type: 'info',
+  })
+
+  return Promise.resolve({ success: true })
 }
 
 export const generateMeasurements = async () => {

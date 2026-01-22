@@ -8,15 +8,40 @@ export type Client = {
   created_at: string
 }
 
-export type ContainerStatus = 'Disponível' | 'Ocupado' | 'Manutenção'
+export type ContainerStatus =
+  | 'Ativo'
+  | 'Parcial'
+  | 'Vazio'
+  | 'Pendente'
+  | 'Cheio'
+  | 'Fechado'
+  | 'Disponível'
+  | 'Ocupado'
+  | 'Manutenção'
+
+export type ContainerTypeDef = {
+  id: string
+  name: string
+  volume_m3: number
+  price: number
+}
 
 export type Container = {
   id: string
   cliente_id?: string
+  cliente_nome?: string
   codigo: string
+  bl_number?: string
   capacidade: string
+  tipo?: string
   status: ContainerStatus
+  occupancy_rate: number // 0-100
+  sku_count: number
+  total_volume_m3: number
+  total_weight_kg: number
   created_at: string
+  arrival_date?: string
+  storage_start_date?: string
 }
 
 export type Allocation = {
@@ -47,4 +72,17 @@ export type ActivityLog = {
   message: string
   timestamp: string
   type: 'info' | 'success' | 'warning'
+}
+
+export type DashboardStats = {
+  activeAllocations: number
+  occupancyRate: number
+  activeClients: number
+  pendingExitCosts: number
+  nextBillingDate: string
+  statusDistribution: {
+    status: string
+    count: number
+    fill: string
+  }[]
 }

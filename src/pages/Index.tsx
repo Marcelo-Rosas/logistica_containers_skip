@@ -8,13 +8,14 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { getDashboardStats, getRecentActivity } from '@/lib/mock-service'
-import { ActivityLog } from '@/lib/types'
+import { ActivityLog, DashboardStats } from '@/lib/types'
 import {
   CalendarClock,
   Container as ContainerIcon,
   Users,
   DollarSign,
   Activity,
+  PieChart as PieChartIcon,
 } from 'lucide-react'
 import {
   Bar,
@@ -23,18 +24,20 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
 } from 'recharts'
-import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
+import {
+  ChartContainer,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+} from '@/components/ui/chart'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
-
-type DashboardStats = {
-  activeAllocations: number
-  occupancyRate: number
-  activeClients: number
-  pendingExitCosts: number
-  nextBillingDate: string
-}
 
 const chartData = [
   { name: 'Jan', total: 12000 },
@@ -81,13 +84,44 @@ export default function Index() {
     )
   }
 
+  const pieChartConfig = {
+    status: {
+      label: 'Status',
+    },
+    ativo: {
+      label: 'Ativo',
+      color: 'hsl(var(--chart-1))',
+    },
+    parcial: {
+      label: 'Parcial',
+      color: 'hsl(var(--chart-2))',
+    },
+    vazio: {
+      label: 'Vazio',
+      color: 'hsl(var(--muted))',
+    },
+    pendente: {
+      label: 'Pendente',
+      color: 'hsl(var(--chart-4))',
+    },
+  }
+
+  const pieData = stats?.statusDistribution.map((item) => ({
+    ...item,
+    fill:
+      item.status === 'Ativo'
+        ? 'hsl(var(--chart-1))'
+        : item.status === 'Parcial'
+          ? 'hsl(var(--chart-2))'
+          : item.status === 'Vazio'
+            ? 'hsl(var(--muted))'
+            : 'hsl(var(--chart-4))',
+  }))
+
   return (
     <div className="flex flex-col space-y-6">
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-        <div className="flex items-center space-x-2">
-          {/* Action buttons could go here */}
-        </div>
       </div>
 
       {/* KPI Section */}
@@ -109,7 +143,9 @@ export default function Index() {
 
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ocupação</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Ocupação Média
+            </CardTitle>
             <ContainerIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -160,7 +196,39 @@ export default function Index() {
       {/* Charts & Activity */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         {/* Revenue Chart */}
-        <Card className="col-span-4 hover:shadow-md transition-shadow">
+        <Card className="col-span-4 lg:col-span-3 hover:shadow-md transition-shadow">
+          <CardHeader>
+            <CardTitle>Status dos Containers</CardTitle>
+            <CardDescription>Distribuição atual da frota</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer
+              config={pieChartConfig}
+              className="mx-auto aspect-square max-h-[300px]"
+            >
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  dataKey="count"
+                  nameKey="status"
+                  innerRadius={60}
+                  strokeWidth={5}
+                >
+                  {pieData?.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent hideLabel />}
+                />
+                <ChartLegend content={<ChartLegendContent />} />
+              </PieChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        <Card className="col-span-4 lg:col-span-4 hover:shadow-md transition-shadow">
           <CardHeader>
             <CardTitle>Receita Mensal</CardTitle>
           </CardHeader>
@@ -203,7 +271,7 @@ export default function Index() {
         </Card>
 
         {/* Recent Activity */}
-        <Card className="col-span-3 hover:shadow-md transition-shadow">
+        <Card className="col-span-full hover:shadow-md transition-shadow">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity className="h-5 w-5" />
@@ -212,7 +280,7 @@ export default function Index() {
             <CardDescription>Últimas movimentações do sistema</CardDescription>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[300px] pr-4">
+            <ScrollArea className="h-[200px] pr-4">
               <div className="space-y-6">
                 {activities.map((activity) => (
                   <div key={activity.id} className="flex items-start gap-4">
