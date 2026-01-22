@@ -15,7 +15,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
-import { Bell, Search, User } from 'lucide-react'
+import { Bell, Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,7 +26,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
 export default function Layout() {
   const location = useLocation()
@@ -96,10 +96,6 @@ export default function Layout() {
                   className="relative h-8 w-8 rounded-full"
                 >
                   <Avatar className="h-8 w-8">
-                    <AvatarImage
-                      src="https://github.com/shadcn.png"
-                      alt="@usuario"
-                    />
                     <AvatarFallback>AD</AvatarFallback>
                   </Avatar>
                 </Button>
