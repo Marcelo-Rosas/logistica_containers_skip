@@ -24,19 +24,21 @@ import {
   createExitEvent,
 } from '@/lib/mock-service'
 import { Container, InventoryItem } from '@/lib/types'
-import { Loader2 } from 'lucide-react'
+import { Loader2, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface NewExitEventDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
+  initialContainerId?: string
 }
 
 export function NewExitEventDialog({
   open,
   onOpenChange,
   onSuccess,
+  initialContainerId,
 }: NewExitEventDialogProps) {
   const [containers, setContainers] = useState<Container[]>([])
   const [inventory, setInventory] = useState<InventoryItem[]>([])
@@ -54,10 +56,13 @@ export function NewExitEventDialog({
   useEffect(() => {
     if (open) {
       loadContainers()
+      if (initialContainerId) {
+        setSelectedContainerId(initialContainerId)
+      }
     } else {
       resetForm()
     }
-  }, [open])
+  }, [open, initialContainerId])
 
   useEffect(() => {
     if (selectedContainerId) {
@@ -89,6 +94,37 @@ export function NewExitEventDialog({
     }
   }
 
+  const generatePDF = (data: any) => {
+    const content = `
+DOCUMENTO DE SEPARAÇÃO - LOGÍSTICA
+----------------------------------
+DATA: ${new Date().toLocaleString()}
+ID EVENTO: ${Date.now()}
+DOCUMENTO NF: ${data.doc_number}
+
+CONTAINER: ${data.container_code}
+PRODUTO: ${data.sku}
+QUANTIDADE: ${data.quantity}
+
+DESTINO: ${data.destination}
+RESPONSÁVEL: ${data.responsible}
+
+----------------------------------
+ESTE DOCUMENTO DEVE ACOMPANHAR A MERCADORIA.
+ASSINATURA: __________________________
+    `.trim()
+
+    const blob = new Blob([content], { type: 'text/plain' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `separacao_${data.container_code}_${data.sku}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  }
+
   const handleSubmit = async () => {
     // Validation
     if (
@@ -111,7 +147,8 @@ export function NewExitEventDialog({
 
     setSubmitting(true)
     try {
-      await createExitEvent({
+      // 1. Update Inventory / Create Event
+      const newEvent = await createExitEvent({
         container_id: selectedContainerId,
         inventory_id: selectedInventoryId,
         quantity: Number(quantity),
@@ -119,10 +156,24 @@ export function NewExitEventDialog({
         destination: destination || 'Não informado',
         responsible: responsible || 'Sistema',
       })
+
+      // 2. Success Feedback
       toast.success('Saída registrada com sucesso!')
+
+      // 3. Trigger Visual Alert (Logistics Separation)
+      toast('Alerta de Separação Logística', {
+        description: `Ordem de separação gerada para ${newEvent.sku}. Baixando documento...`,
+        icon: <AlertTriangle className="h-4 w-4 text-amber-500" />,
+        duration: 5000,
+      })
+
+      // 4. Generate PDF Document
+      generatePDF(newEvent)
+
       onSuccess()
       onOpenChange(false)
     } catch (error) {
+      console.error(error)
       toast.error('Erro ao registrar saída')
     } finally {
       setSubmitting(false)
@@ -130,7 +181,7 @@ export function NewExitEventDialog({
   }
 
   const resetForm = () => {
-    setSelectedContainerId('')
+    if (!initialContainerId) setSelectedContainerId('')
     setSelectedInventoryId('')
     setQuantity('')
     setDocNumber('')
@@ -156,7 +207,7 @@ export function NewExitEventDialog({
             <Select
               value={selectedContainerId}
               onValueChange={setSelectedContainerId}
-              disabled={loading}
+              disabled={loading || !!initialContainerId}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um container" />

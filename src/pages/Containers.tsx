@@ -1,15 +1,16 @@
 /* Containers Grid View Page - Enhanced for Advanced Management */
 import { useEffect, useState } from 'react'
 import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -17,50 +18,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose,
-} from '@/components/ui/dialog'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Progress } from '@/components/ui/progress'
-import { Label } from '@/components/ui/label'
-import {
-  getContainers,
-  createContainer,
-  getClients,
-  processRemoval,
-} from '@/lib/mock-service'
+import { getContainers, createContainer, getClients } from '@/lib/mock-service'
 import { Container, Client, ContainerTypeDef } from '@/lib/types'
-import {
-  Box,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
-  Package,
-  Ruler,
-  Weight,
-  MoreVertical,
-  Plus,
-  FileSpreadsheet,
-  Trash2,
-  Ship,
-  UserPlus,
-  CalendarIcon,
-} from 'lucide-react'
+import { Plus, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
+import { ContainerCard } from '@/components/ContainerCard'
+import { NewExitEventDialog } from '@/components/NewExitEventDialog'
 
 const containerTypes: ContainerTypeDef[] = [
   { id: '20ft', name: "Dry Box 20'", volume_m3: 33.2, price: 2500 },
@@ -74,8 +37,10 @@ export default function Containers() {
   const [filter, setFilter] = useState('todos')
   const [search, setSearch] = useState('')
   const [isNewContainerOpen, setIsNewContainerOpen] = useState(false)
+
+  // State for Exit Dialog triggered from Card
   const [isExitDialogOpen, setIsExitDialogOpen] = useState(false)
-  const [selectedContainer, setSelectedContainer] = useState<Container | null>(
+  const [selectedContainerId, setSelectedContainerId] = useState<string | null>(
     null,
   )
 
@@ -87,12 +52,6 @@ export default function Containers() {
     clientId: '',
     arrivalDate: '',
     storageDate: '',
-  })
-
-  // Exit Form State
-  const [exitData, setExitData] = useState({
-    sku: '',
-    qty: 0,
   })
 
   useEffect(() => {
@@ -120,9 +79,6 @@ export default function Containers() {
     }
 
     try {
-      const typeDef = containerTypes.find(
-        (t) => t.name === newContainerData.type,
-      )
       await createContainer({
         codigo: newContainerData.id,
         bl_number: newContainerData.bl,
@@ -147,21 +103,18 @@ export default function Containers() {
     }
   }
 
-  const handleExitEvent = async () => {
-    if (!selectedContainer || !exitData.sku || exitData.qty <= 0) {
-      toast.error('Preencha os dados da saída')
-      return
-    }
-    try {
-      await processRemoval(selectedContainer.id, exitData.sku, exitData.qty)
-      toast.success('Saída registrada e equipe notificada!')
-      setIsExitDialogOpen(false)
-      loadData()
-      setExitData({ sku: '', qty: 0 })
-      setSelectedContainer(null)
-    } catch (e) {
-      toast.error('Erro ao registrar saída')
-    }
+  // Card Action Handlers
+  const handleExitTrigger = (container: Container) => {
+    setSelectedContainerId(container.id)
+    setIsExitDialogOpen(true)
+  }
+
+  const handleSimulate = (container: Container) => {
+    toast.info(`Simulação de medição para ${container.codigo} iniciada...`)
+  }
+
+  const handleExport = (container: Container) => {
+    toast.success(`Exportando dados de ${container.codigo}...`)
   }
 
   const filteredContainers = containers.filter((c) => {
@@ -171,51 +124,6 @@ export default function Containers() {
       c.status.toLowerCase().includes(filter.toLowerCase())
     return matchesSearch && matchesFilter
   })
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Ativo':
-      case 'Cheio':
-        return 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent'
-      case 'Parcial':
-      case 'Ocupado':
-        return 'bg-blue-500 hover:bg-blue-600 text-white border-transparent'
-      case 'Vazio':
-      case 'Disponível':
-        return 'bg-slate-200 hover:bg-slate-300 text-slate-700 border-transparent'
-      case 'Pendente':
-        return 'bg-amber-500 hover:bg-amber-600 text-white border-transparent'
-      case 'Manutenção':
-      case 'Fechado':
-        return 'bg-red-500 hover:bg-red-600 text-white border-transparent'
-      default:
-        return 'bg-slate-500'
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'Ativo':
-      case 'Cheio':
-        return <CheckCircle2 className="h-3 w-3" />
-      case 'Parcial':
-      case 'Ocupado':
-        return <Box className="h-3 w-3" />
-      case 'Pendente':
-        return <Clock className="h-3 w-3" />
-      case 'Manutenção':
-      case 'Fechado':
-        return <AlertCircle className="h-3 w-3" />
-      default:
-        return <Box className="h-3 w-3" />
-    }
-  }
-
-  const getOccupancyColor = (rate: number) => {
-    if (rate > 75) return 'bg-emerald-500'
-    if (rate > 40) return 'bg-amber-500'
-    return 'bg-red-500'
-  }
 
   const selectedType = containerTypes.find(
     (t) => t.name === newContainerData.type,
@@ -425,123 +333,13 @@ export default function Containers() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredContainers.map((container) => (
-          <Card
+          <ContainerCard
             key={container.id}
-            className="hover:border-primary/50 transition-colors group relative overflow-hidden"
-          >
-            <div className="absolute top-0 left-0 w-1 h-full bg-slate-200" />
-            <CardHeader className="flex flex-row items-start justify-between pb-2 pl-6">
-              <div className="space-y-1">
-                <CardTitle className="font-mono text-xl tracking-tight flex items-center gap-2">
-                  {container.codigo}
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      'ml-2 font-normal text-xs py-0 h-5',
-                      getStatusColor(container.status),
-                    )}
-                  >
-                    <span className="flex items-center gap-1">
-                      {getStatusIcon(container.status)}
-                      {container.status}
-                    </span>
-                  </Badge>
-                </CardTitle>
-                <div className="text-sm text-muted-foreground flex flex-col">
-                  <span className="font-medium text-foreground truncate max-w-[200px]">
-                    {container.cliente_nome || 'Sem cliente'}
-                  </span>
-                  <span className="text-xs flex items-center gap-1">
-                    <Ship className="h-3 w-3" /> BL: {container.bl_number}
-                  </span>
-                </div>
-              </div>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>Ver detalhes</DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setSelectedContainer(container)
-                      setIsExitDialogOpen(true)
-                    }}
-                  >
-                    Registrar saída
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>Simular medição</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>Exportar</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </CardHeader>
-
-            <CardContent className="pl-6 pb-2">
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-muted-foreground">Ocupação</span>
-                    <span className="font-medium">
-                      {container.occupancy_rate}%
-                    </span>
-                  </div>
-                  <Progress
-                    value={container.occupancy_rate}
-                    className="h-2"
-                    indicatorClassName={getOccupancyColor(
-                      container.occupancy_rate,
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 py-2">
-                  <div className="flex flex-col items-center justify-center p-2 bg-slate-50 rounded-md border text-center">
-                    <Package className="h-4 w-4 text-muted-foreground mb-1" />
-                    <span className="text-sm font-bold">
-                      {container.sku_count}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground uppercase">
-                      SKUs
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center justify-center p-2 bg-slate-50 rounded-md border text-center">
-                    <Ruler className="h-4 w-4 text-muted-foreground mb-1" />
-                    <span className="text-sm font-bold">
-                      {container.total_volume_m3}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground uppercase">
-                      m³
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center justify-center p-2 bg-slate-50 rounded-md border text-center">
-                    <Weight className="h-4 w-4 text-muted-foreground mb-1" />
-                    <span className="text-sm font-bold">
-                      {(container.total_weight_kg / 1000).toFixed(1)}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground uppercase">
-                      Ton
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-
-            <CardFooter className="bg-slate-50/50 p-3 pl-6 text-xs text-muted-foreground border-t flex justify-between">
-              <span>Tipo: {container.tipo || container.capacidade}</span>
-              <span>
-                Entrada:{' '}
-                {container.arrival_date
-                  ? new Date(container.arrival_date).toLocaleDateString('pt-BR')
-                  : '-'}
-              </span>
-            </CardFooter>
-          </Card>
+            container={container}
+            onExit={handleExitTrigger}
+            onSimulate={handleSimulate}
+            onExport={handleExport}
+          />
         ))}
       </div>
 
@@ -561,10 +359,7 @@ export default function Containers() {
             Depois que um pedido entra no processamento de remessa, o sistema de
             monitoramento de status de remessa começa a rastrear o status de
             remessa das linhas de pedido ou linhas de agendamento de remessa.
-            Isso envolve verificar a entrega, a rota e a atribuição de carga. A
-            Business Transaction Intelligence cria uma mensagem de status de
-            remessa para cada status de remessa novo ou alterado que foi gerado
-            pela transação de negócios externa.
+            Isso envolve verificar a entrega, a rota e a atribuição de carga.
           </p>
           <p>
             Essas mensagens são cruciais para manter a visibilidade operacional.
@@ -582,58 +377,13 @@ export default function Containers() {
         </div>
       </section>
 
-      {/* Exit Dialog */}
-      <Dialog open={isExitDialogOpen} onOpenChange={setIsExitDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Registrar Saída (Evento de Retirada)</DialogTitle>
-            <p className="text-sm text-muted-foreground">
-              Container: {selectedContainer?.codigo}
-            </p>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label>Produto (SKU)</Label>
-              <Input
-                placeholder="Código do produto"
-                value={exitData.sku}
-                onChange={(e) =>
-                  setExitData({ ...exitData, sku: e.target.value })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Quantidade</Label>
-              <Input
-                type="number"
-                placeholder="Qtd"
-                value={exitData.qty}
-                onChange={(e) =>
-                  setExitData({ ...exitData, qty: Number(e.target.value) })
-                }
-              />
-            </div>
-            <div className="p-3 bg-blue-50 text-blue-800 text-xs rounded-md border border-blue-100 flex items-start gap-2">
-              <FileSpreadsheet className="h-4 w-4 shrink-0 mt-0.5" />
-              <p>
-                Ao confirmar, um documento PDF de separação será gerado e a
-                equipe logística será notificada automaticamente.
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsExitDialogOpen(false)}
-            >
-              Cancelar
-            </Button>
-            <Button variant="destructive" onClick={handleExitEvent}>
-              <Trash2 className="mr-2 h-4 w-4" /> Registrar Saída
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Exit Dialog triggered by cards */}
+      <NewExitEventDialog
+        open={isExitDialogOpen}
+        onOpenChange={setIsExitDialogOpen}
+        onSuccess={loadData}
+        initialContainerId={selectedContainerId || undefined}
+      />
     </div>
   )
 }

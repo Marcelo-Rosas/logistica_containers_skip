@@ -274,6 +274,13 @@ let events: LogisticsEvent[] = [
 // Service Functions
 export const getClients = async () => Promise.resolve([...clients])
 export const getContainers = async () => Promise.resolve([...containers])
+
+export const getContainer = async (id: string) => {
+  const container = containers.find((c) => c.id === id || c.codigo === id)
+  if (!container) throw new Error('Container not found')
+  return Promise.resolve(container)
+}
+
 export const getAllocations = async () => Promise.resolve([...allocations])
 export const getRecentActivity = async () =>
   Promise.resolve([...recentActivity])
@@ -334,6 +341,28 @@ export const createExitEvent = async (data: {
     timestamp: 'Agora',
     type: 'warning',
   })
+
+  // Update Container status if empty
+  const totalItems = inventory.filter(
+    (i) => i.container_id === container.id && i.quantity > 0,
+  ).length
+  if (totalItems === 0) {
+    const cIndex = containers.findIndex((c) => c.id === container.id)
+    if (cIndex >= 0) {
+      containers[cIndex] = { ...containers[cIndex], status: 'Vazio' }
+    }
+  } else {
+    // If not empty but reduced, update occupancy slightly
+    const cIndex = containers.findIndex((c) => c.id === container.id)
+    if (cIndex >= 0) {
+      const current = containers[cIndex]
+      containers[cIndex] = {
+        ...current,
+        status: 'Parcial',
+        occupancy_rate: Math.max(1, current.occupancy_rate - 2), // Mock reduction
+      }
+    }
+  }
 
   return Promise.resolve(newEvent)
 }
