@@ -18,9 +18,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { getContainers, createContainer, getClients } from '@/lib/mock-service'
-import { Container, Client, ContainerTypeDef } from '@/lib/types'
-import { Plus, UserPlus } from 'lucide-react'
+import {
+  getContainers,
+  createContainer,
+  getClients,
+  getBLs,
+} from '@/lib/mock-service'
+import { Container, Client, ContainerTypeDef, BillOfLading } from '@/lib/types'
+import { Plus, UserPlus, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import { ContainerCard } from '@/components/ContainerCard'
 import { NewExitEventDialog } from '@/components/NewExitEventDialog'
@@ -34,6 +39,7 @@ const containerTypes: ContainerTypeDef[] = [
 export default function Containers() {
   const [containers, setContainers] = useState<Container[]>([])
   const [clients, setClients] = useState<Client[]>([])
+  const [bls, setBls] = useState<BillOfLading[]>([])
   const [filter, setFilter] = useState('todos')
   const [search, setSearch] = useState('')
   const [isNewContainerOpen, setIsNewContainerOpen] = useState(false)
@@ -47,7 +53,7 @@ export default function Containers() {
   // New Container Form State
   const [newContainerData, setNewContainerData] = useState({
     id: '',
-    bl: '',
+    blId: '',
     type: '',
     clientId: '',
     arrivalDate: '',
@@ -59,29 +65,34 @@ export default function Containers() {
   }, [])
 
   const loadData = async () => {
-    const [cData, clientData] = await Promise.all([
+    const [cData, clientData, blData] = await Promise.all([
       getContainers(),
       getClients(),
+      getBLs(),
     ])
     setContainers(cData)
     setClients(clientData)
+    setBls(blData)
   }
 
   const handleCreateContainer = async () => {
     if (
       !newContainerData.id ||
-      !newContainerData.bl ||
+      !newContainerData.blId || // Changed validation logic: BL is mandatory
       !newContainerData.type ||
       !newContainerData.arrivalDate
     ) {
-      toast.error('Preencha todos os campos obrigatórios')
+      toast.error('Preencha todos os campos obrigatórios, incluindo o BL.')
       return
     }
+
+    const selectedBL = bls.find((b) => b.id === newContainerData.blId)
 
     try {
       await createContainer({
         codigo: newContainerData.id,
-        bl_number: newContainerData.bl,
+        bl_id: selectedBL?.id,
+        bl_number: selectedBL?.number,
         tipo: newContainerData.type,
         cliente_id: newContainerData.clientId,
         arrival_date: newContainerData.arrivalDate,
@@ -92,7 +103,7 @@ export default function Containers() {
       loadData()
       setNewContainerData({
         id: '',
-        bl: '',
+        blId: '',
         type: '',
         clientId: '',
         arrivalDate: '',
@@ -154,11 +165,38 @@ export default function Containers() {
               <DialogHeader>
                 <DialogTitle>Novo Contêiner</DialogTitle>
                 <p className="text-sm text-muted-foreground">
-                  Adicione um novo contêiner ao sistema de armazenagem.
+                  Adicione um novo contêiner vinculado a um BL.
                 </p>
               </DialogHeader>
 
               <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label>Bill of Lading (Obrigatório)</Label>
+                  <Select
+                    value={newContainerData.blId}
+                    onValueChange={(val) =>
+                      setNewContainerData({
+                        ...newContainerData,
+                        blId: val,
+                      })
+                    }
+                  >
+                    <SelectTrigger className="border-l-4 border-l-primary">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        <SelectValue placeholder="Selecione o BL de origem..." />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {bls.map((bl) => (
+                        <SelectItem key={bl.id} value={bl.id}>
+                          {bl.number} - {bl.client_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>ID do Contêiner *</Label>
@@ -174,40 +212,25 @@ export default function Containers() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Número BL *</Label>
-                    <Input
-                      placeholder="Ex: 06BRZ2311002"
-                      value={newContainerData.bl}
-                      onChange={(e) =>
-                        setNewContainerData({
-                          ...newContainerData,
-                          bl: e.target.value,
-                        })
+                    <Label>Tipo de Contêiner</Label>
+                    <Select
+                      value={newContainerData.type}
+                      onValueChange={(val) =>
+                        setNewContainerData({ ...newContainerData, type: val })
                       }
-                    />
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o tipo..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {containerTypes.map((t) => (
+                          <SelectItem key={t.id} value={t.name}>
+                            {t.name} - {t.volume_m3} m³
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Tipo de Contêiner</Label>
-                  <Select
-                    value={newContainerData.type}
-                    onValueChange={(val) =>
-                      setNewContainerData({ ...newContainerData, type: val })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o tipo..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {containerTypes.map((t) => (
-                        <SelectItem key={t.id} value={t.name}>
-                          {t.name} - {t.volume_m3} m³ - R${' '}
-                          {t.price.toLocaleString('pt-BR')}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
 
                 <div className="space-y-2">
@@ -287,10 +310,6 @@ export default function Containers() {
                       <span className="font-medium">
                         {selectedType.volume_m3} m³
                       </span>
-                      <span className="text-muted-foreground">Custo Base:</span>
-                      <span className="font-medium">
-                        R$ {selectedType.price.toLocaleString('pt-BR')}/mês
-                      </span>
                     </div>
                   </div>
                 )}
@@ -342,40 +361,6 @@ export default function Containers() {
           />
         ))}
       </div>
-
-      {/* Operational Documentation Section */}
-      <section className="bg-slate-50 border rounded-lg p-6 space-y-4">
-        <div className="space-y-1">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            Monitorando pedidos por status de remessa
-          </h3>
-          <p className="text-xs text-muted-foreground">
-            Atualizado pela última vez: 2026-01-20
-          </p>
-        </div>
-
-        <div className="space-y-4 text-sm text-slate-700">
-          <p>
-            Depois que um pedido entra no processamento de remessa, o sistema de
-            monitoramento de status de remessa começa a rastrear o status de
-            remessa das linhas de pedido ou linhas de agendamento de remessa.
-            Isso envolve verificar a entrega, a rota e a atribuição de carga.
-          </p>
-          <p>
-            Essas mensagens são cruciais para manter a visibilidade operacional.
-            Atrasos na atualização podem impactar diretamente o SLA de clientes
-            sensíveis. Operadores devem verificar o painel de atividades
-            diariamente para garantir que não haja discrepâncias entre o físico
-            e o sistêmico.
-          </p>
-        </div>
-
-        <div className="pt-4 border-t border-slate-200">
-          <p className="text-xs font-medium text-slate-500">
-            Tópico principal: Gestão de Visibilidade Logística
-          </p>
-        </div>
-      </section>
 
       {/* Exit Dialog triggered by cards */}
       <NewExitEventDialog

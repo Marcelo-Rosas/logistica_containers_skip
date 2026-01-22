@@ -21,6 +21,8 @@ import {
   Package,
   History,
   Receipt,
+  FileText,
+  AlertTriangle,
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -32,8 +34,10 @@ export function AppSidebar() {
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
+    { icon: FileText, label: 'Gestão de BLs', path: '/bl' },
     { icon: Users, label: 'Clientes', path: '/clientes' },
     { icon: Box, label: 'Containers', path: '/containers' },
+    { icon: AlertTriangle, label: 'Divergências', path: '/divergencias' },
     { icon: ClipboardList, label: 'Alocações', path: '/alocacoes' },
     { icon: History, label: 'Movimentações', path: '/eventos' },
     { icon: Receipt, label: 'Faturamento', path: '/faturamento' },
@@ -56,10 +60,14 @@ export function AppSidebar() {
               <SidebarMenuButton
                 asChild
                 tooltip={item.label}
-                isActive={location.pathname === item.path}
+                isActive={
+                  location.pathname === item.path ||
+                  location.pathname.startsWith(item.path + '/')
+                }
                 className={cn(
                   'transition-all duration-200',
-                  location.pathname === item.path &&
+                  (location.pathname === item.path ||
+                    location.pathname.startsWith(item.path + '/')) &&
                     'bg-accent text-accent-foreground font-medium',
                 )}
               >

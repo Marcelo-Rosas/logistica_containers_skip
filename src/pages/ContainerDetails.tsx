@@ -20,8 +20,9 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ArrowLeft, Box, Download, LogOut } from 'lucide-react'
+import { ArrowLeft, FileText, LogOut, ExternalLink } from 'lucide-react'
 import { NewExitEventDialog } from '@/components/NewExitEventDialog'
+import { Separator } from '@/components/ui/separator'
 
 export default function ContainerDetails() {
   const { id } = useParams()
@@ -83,6 +84,34 @@ export default function ContainerDetails() {
           <LogOut className="mr-2 h-4 w-4" /> Registrar Saída
         </Button>
       </div>
+
+      {/* BL Association Card */}
+      {container.bl_id && (
+        <Card className="bg-slate-50 border-blue-100">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <FileText className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-500">
+                  Documento de Origem (BL)
+                </p>
+                <p className="text-lg font-bold text-slate-900">
+                  {container.bl_number || 'N/A'}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/bl/${container.bl_id}`)}
+            >
+              Ver Documento <ExternalLink className="ml-2 h-3 w-3" />
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>

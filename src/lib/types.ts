@@ -30,8 +30,10 @@ export type Container = {
   id: string
   cliente_id?: string
   cliente_nome?: string
+  bl_id?: string // Linked BL
+  bl_number?: string // Helper for display
   codigo: string
-  bl_number?: string
+  bl_number_legacy?: string // Keeping for backward compatibility if needed, but bl_id is primary
   capacidade: string
   tipo?: string
   status: ContainerStatus
@@ -133,4 +135,51 @@ export type LogisticsEvent = {
   timestamp: string
   value: number
   fee?: number
+}
+
+// New Types for BL Story
+export type BillOfLading = {
+  id: string
+  number: string
+  client_id: string
+  client_name: string
+  shipper: string
+  consignee: string
+  vessel: string
+  voyage: string
+  port_of_loading: string
+  port_of_discharge: string
+  total_weight_kg: number
+  total_volume_m3: number
+  container_count: number
+  status: 'Pending' | 'Processed' | 'Divergent' | 'Cleared'
+  created_at: string
+  file_url?: string
+}
+
+export type Divergence = {
+  id: string
+  bl_id: string
+  bl_number: string
+  type:
+    | 'Weight'
+    | 'Volume'
+    | 'Container Number'
+    | 'Seal'
+    | 'NCM'
+    | 'Missing EDI'
+  severity: 'Critical' | 'Warning' | 'Info'
+  description: string
+  status: 'Open' | 'Resolved' | 'Ignored'
+  created_at: string
+  edi_value?: string
+  bl_value?: string
+}
+
+export type EDILog = {
+  id: string
+  bl_id: string
+  payload_snippet: string
+  received_at: string
+  status: 'Matched' | 'Divergent' | 'Orphaned'
 }
