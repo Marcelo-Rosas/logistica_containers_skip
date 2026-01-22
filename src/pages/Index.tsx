@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/chart'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
+import { NextMeasurementCard } from '@/components/NextMeasurementCard'
 
 const chartData = [
   { name: 'Jan', total: 12000 },
@@ -124,22 +125,9 @@ export default function Index() {
         <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
       </div>
 
-      {/* KPI Section */}
+      {/* KPI Section with Next Measurement Card */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Próxima Fatura
-            </CardTitle>
-            <CalendarClock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.nextBillingDate}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats?.activeAllocations} alocações ativas
-            </p>
-          </CardContent>
-        </Card>
+        <NextMeasurementCard />
 
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

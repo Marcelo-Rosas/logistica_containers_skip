@@ -116,6 +116,18 @@
 }
 
 @layer utilities {
+  .bg-gradient-hero {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  }
+
+  .pattern-container {
+    background-image: radial-gradient(
+      rgba(255, 255, 255, 0.1) 1px,
+      transparent 1px
+    );
+    background-size: 20px 20px;
+  }
+
   /* KEEP ALL THE ANIMATIONS CLASSES THAT ARE USED BELOW */
   @keyframes accordion-down {
     from {

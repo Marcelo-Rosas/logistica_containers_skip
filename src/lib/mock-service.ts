@@ -7,6 +7,7 @@ import {
   DashboardStats,
   InventoryItem,
   LogisticsEvent,
+  Invoice,
 } from './types'
 
 // Initial Data (Mutable to allow updates during session)
@@ -64,6 +65,7 @@ let containers: Container[] = [
     cliente_id: '1',
     cliente_nome: 'Importadora Global S.A.',
     arrival_date: '2022-11-01',
+    base_cost_brl: 500,
   },
   {
     id: '102',
@@ -78,6 +80,7 @@ let containers: Container[] = [
     total_weight_kg: 0,
     created_at: '2022-11-01',
     arrival_date: '2022-11-05',
+    base_cost_brl: 800,
   },
   {
     id: '103',
@@ -92,6 +95,7 @@ let containers: Container[] = [
     total_weight_kg: 0,
     created_at: '2022-12-05',
     arrival_date: '2022-12-05',
+    base_cost_brl: 500,
   },
   {
     id: '104',
@@ -108,6 +112,7 @@ let containers: Container[] = [
     cliente_id: '3',
     cliente_nome: 'Agro Exportadora',
     arrival_date: '2023-01-10',
+    base_cost_brl: 950,
   },
   {
     id: '105',
@@ -124,6 +129,7 @@ let containers: Container[] = [
     cliente_id: '2',
     cliente_nome: 'Tech Solutions Ltda',
     arrival_date: '2023-02-15',
+    base_cost_brl: 600,
   },
   {
     id: '106',
@@ -138,6 +144,7 @@ let containers: Container[] = [
     total_weight_kg: 1200,
     created_at: '2023-03-20',
     arrival_date: '2023-03-20',
+    base_cost_brl: 800,
   },
 ]
 
@@ -160,7 +167,7 @@ let allocations: Allocation[] = [
     cliente_id: '3',
     cliente_nome: 'Agro Exportadora',
     data_entrada: '2023-11-15',
-    custo_mensal: 800,
+    custo_mensal: 950,
     created_at: '2023-11-15',
     status: 'Ativo',
   },
@@ -268,6 +275,30 @@ let events: LogisticsEvent[] = [
     responsible: 'Maria Costa',
     timestamp: '2026-01-20T14:30:00Z',
     value: 7500,
+    fee: 150,
+  },
+]
+
+let invoices: Invoice[] = [
+  {
+    id: 'inv-001',
+    client_id: '1',
+    client_name: 'Importadora Global S.A.',
+    month: 12,
+    year: 2025,
+    total_amount: 500,
+    status: 'Paid',
+    due_date: '2026-01-10',
+    created_at: '2025-12-25T10:00:00Z',
+    items: [
+      {
+        id: 'item-1',
+        description: 'Armazenagem CMAU3754293 (Dez/2025)',
+        amount: 500,
+        type: 'storage',
+        reference_id: '101',
+      },
+    ],
   },
 ]
 
@@ -292,6 +323,103 @@ export const getInventory = async (containerId: string) => {
 }
 
 export const getEvents = async () => Promise.resolve([...events])
+
+export const getInvoices = async () => Promise.resolve([...invoices])
+
+export const simulateBilling = async () => {
+  // Simulate logic: group active allocations by client + recent exits
+  const simulatedInvoices: Invoice[] = []
+  const today = new Date()
+  const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1)
+
+  // 1. Storage Costs
+  const activeAllocations = allocations.filter((a) => a.status === 'Ativo')
+
+  for (const client of clients) {
+    let total = 0
+    const items: any[] = []
+
+    // Storage
+    const clientAllocations = activeAllocations.filter(
+      (a) => a.cliente_id === client.id,
+    )
+    clientAllocations.forEach((alloc) => {
+      total += alloc.custo_mensal
+      items.push({
+        id: `sim-${alloc.id}`,
+        description: `Armazenagem ${alloc.container_code} (Mês Atual)`,
+        amount: alloc.custo_mensal,
+        type: 'storage',
+        reference_id: alloc.container_id,
+      })
+    })
+
+    // Exits (Mocking exits from current month)
+    const clientExits = events.filter((e) => {
+      const container = containers.find((c) => c.codigo === e.container_code)
+      return (
+        e.type === 'exit' &&
+        container?.cliente_id === client.id &&
+        new Date(e.timestamp).getMonth() === today.getMonth()
+      )
+    })
+
+    clientExits.forEach((evt) => {
+      const fee = evt.fee || 150 // Default fee if not set
+      total += fee
+      items.push({
+        id: `sim-evt-${evt.id}`,
+        description: `Taxa de Saída - ${evt.sku} (${evt.doc_number})`,
+        amount: fee,
+        type: 'exit_fee',
+        reference_id: evt.id,
+      })
+    })
+
+    if (total > 0) {
+      simulatedInvoices.push({
+        id: `draft-${client.id}`,
+        client_id: client.id,
+        client_name: client.nome,
+        month: nextMonth.getMonth() + 1,
+        year: nextMonth.getFullYear(),
+        total_amount: total,
+        status: 'Draft',
+        due_date: new Date(
+          nextMonth.getFullYear(),
+          nextMonth.getMonth(),
+          10,
+        ).toISOString(),
+        created_at: new Date().toISOString(),
+        items: items,
+      })
+    }
+  }
+
+  return Promise.resolve(simulatedInvoices)
+}
+
+export const generateMonthlyInvoices = async (simulated: Invoice[]) => {
+  simulated.forEach((inv) => {
+    // Convert draft to real invoice
+    const newInvoice = {
+      ...inv,
+      id: `inv-${Date.now()}-${inv.client_id}`,
+      status: 'Sent' as const,
+      created_at: new Date().toISOString(),
+    }
+    invoices.unshift(newInvoice)
+  })
+
+  recentActivity.unshift({
+    id: `log-${Date.now()}`,
+    message: `Faturamento mensal gerado: ${simulated.length} faturas criadas.`,
+    timestamp: 'Agora',
+    type: 'success',
+  })
+
+  return Promise.resolve({ success: true, count: simulated.length })
+}
 
 export const createExitEvent = async (data: {
   container_id: string
@@ -330,6 +458,7 @@ export const createExitEvent = async (data: {
     responsible: data.responsible,
     timestamp: new Date().toISOString(),
     value: item.unit_value * data.quantity,
+    fee: 150 + item.unit_volume_m3 * data.quantity * 10, // Mock fee calc: Base + Volume Fee
   }
 
   events.unshift(newEvent)
@@ -418,12 +547,19 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
     },
   ]
 
+  // Dynamic next billing date logic
+  const today = new Date()
+  let billingDate = new Date(today.getFullYear(), today.getMonth(), 25)
+  if (today > billingDate) {
+    billingDate = new Date(today.getFullYear(), today.getMonth() + 1, 25)
+  }
+
   return Promise.resolve({
     activeAllocations,
     occupancyRate,
     activeClients,
     pendingExitCosts: 12500.0, // Hardcoded for simplicity
-    nextBillingDate: '01/02/2026',
+    nextBillingDate: billingDate.toLocaleDateString('pt-BR'),
     statusDistribution,
   })
 }
@@ -447,6 +583,7 @@ export const createContainer = async (data: any) => {
     cliente_nome: client?.nome,
     arrival_date: data.arrival_date,
     storage_start_date: data.storage_start_date,
+    base_cost_brl: data.tipo?.includes('40') ? 800 : 500,
   }
 
   containers.unshift(newContainer)

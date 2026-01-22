@@ -11,6 +11,7 @@ import Alocacoes from './pages/Alocacoes'
 import Events from './pages/Events'
 import Relatorios from './pages/Relatorios'
 import Configuracoes from './pages/Configuracoes'
+import Faturamento from './pages/Faturamento'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -29,6 +30,7 @@ const App = () => (
           <Route path="/containers/:id" element={<ContainerDetails />} />
           <Route path="/alocacoes" element={<Alocacoes />} />
           <Route path="/eventos" element={<Events />} />
+          <Route path="/faturamento" element={<Faturamento />} />
           <Route path="/relatorios" element={<Relatorios />} />
           <Route path="/configuracoes" element={<Configuracoes />} />
         </Route>

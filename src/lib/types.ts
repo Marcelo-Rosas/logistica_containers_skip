@@ -42,6 +42,7 @@ export type Container = {
   created_at: string
   arrival_date?: string
   storage_start_date?: string
+  base_cost_brl?: number // Base storage cost
 }
 
 export type Allocation = {
@@ -65,6 +66,27 @@ export type Measurement = {
   valor_cobrado: number
   status_pagamento: 'Pendente' | 'Pago' | 'Atrasado'
   created_at: string
+}
+
+export type InvoiceItem = {
+  id: string
+  description: string
+  amount: number
+  type: 'storage' | 'exit_fee' | 'handling' | 'other'
+  reference_id?: string // container_id or event_id
+}
+
+export type Invoice = {
+  id: string
+  client_id: string
+  client_name: string
+  month: number
+  year: number
+  total_amount: number
+  status: 'Draft' | 'Sent' | 'Paid' | 'Overdue'
+  due_date: string
+  created_at: string
+  items: InvoiceItem[]
 }
 
 export type ActivityLog = {
@@ -110,4 +132,5 @@ export type LogisticsEvent = {
   responsible: string
   timestamp: string
   value: number
+  fee?: number
 }

@@ -20,6 +20,7 @@ import {
   LogOut,
   Package,
   History,
+  Receipt,
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -35,6 +36,7 @@ export function AppSidebar() {
     { icon: Box, label: 'Containers', path: '/containers' },
     { icon: ClipboardList, label: 'Alocações', path: '/alocacoes' },
     { icon: History, label: 'Movimentações', path: '/eventos' },
+    { icon: Receipt, label: 'Faturamento', path: '/faturamento' },
     { icon: BarChart3, label: 'Relatórios', path: '/relatorios' },
     { icon: Settings, label: 'Configurações', path: '/configuracoes' },
   ]
