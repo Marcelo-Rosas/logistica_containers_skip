@@ -1,14 +1,16 @@
-/* Main App Component - Handles routing (using react-router-dom), query client and other providers - use this file to add all routes */
+/* Main App Component - Updated with Routes */
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import Index from './pages/Index'
+import Clientes from './pages/Clientes'
+import Containers from './pages/Containers'
+import Alocacoes from './pages/Alocacoes'
+import Relatorios from './pages/Relatorios'
+import Configuracoes from './pages/Configuracoes'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
-
-// ONLY IMPORT AND RENDER WORKING PAGES, NEVER ADD PLACEHOLDER COMPONENTS OR PAGES IN THIS FILE
-// AVOID REMOVING ANY CONTEXT PROVIDERS FROM THIS FILE (e.g. TooltipProvider, Toaster, Sonner)
 
 const App = () => (
   <BrowserRouter
@@ -20,7 +22,11 @@ const App = () => (
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES MUST BE ADDED HERE */}
+          <Route path="/clientes" element={<Clientes />} />
+          <Route path="/containers" element={<Containers />} />
+          <Route path="/alocacoes" element={<Alocacoes />} />
+          <Route path="/relatorios" element={<Relatorios />} />
+          <Route path="/configuracoes" element={<Configuracoes />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
