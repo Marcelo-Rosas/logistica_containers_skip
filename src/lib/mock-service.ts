@@ -5,6 +5,8 @@ import {
   Allocation,
   ActivityLog,
   DashboardStats,
+  InventoryItem,
+  LogisticsEvent,
 } from './types'
 
 // Initial Data (Mutable to allow updates during session)
@@ -185,12 +187,156 @@ let recentActivity: ActivityLog[] = [
   },
 ]
 
+let inventory: InventoryItem[] = [
+  {
+    id: 'inv1',
+    container_id: '101',
+    sku: 'SKU-001',
+    name: 'Eletrônicos A',
+    quantity: 500,
+    unit_volume_m3: 0.05,
+    unit_value: 150,
+  },
+  {
+    id: 'inv2',
+    container_id: '101',
+    sku: 'SKU-002',
+    name: 'Cabos HDMI',
+    quantity: 1000,
+    unit_volume_m3: 0.01,
+    unit_value: 25,
+  },
+  {
+    id: 'inv3',
+    container_id: '104',
+    sku: 'SKU-003',
+    name: 'Soja Granel',
+    quantity: 5000,
+    unit_volume_m3: 0.005,
+    unit_value: 2,
+  },
+  {
+    id: 'inv4',
+    container_id: '105',
+    sku: 'SKU-004',
+    name: 'Peças Auto',
+    quantity: 200,
+    unit_volume_m3: 0.1,
+    unit_value: 300,
+  },
+]
+
+let events: LogisticsEvent[] = [
+  {
+    id: 'evt1',
+    type: 'entry',
+    container_id: '101',
+    container_code: 'CMAU3754293',
+    sku: 'SKU-001',
+    quantity: 500,
+    volume_m3: 25,
+    doc_number: 'NF-1001',
+    destination: 'Depósito A',
+    responsible: 'João Silva',
+    timestamp: '2026-01-10T10:00:00Z',
+    value: 75000,
+  },
+  {
+    id: 'evt2',
+    type: 'entry',
+    container_id: '101',
+    container_code: 'CMAU3754293',
+    sku: 'SKU-002',
+    quantity: 1000,
+    volume_m3: 10,
+    doc_number: 'NF-1002',
+    destination: 'Depósito A',
+    responsible: 'João Silva',
+    timestamp: '2026-01-10T11:00:00Z',
+    value: 25000,
+  },
+  {
+    id: 'evt3',
+    type: 'exit',
+    container_id: '101',
+    container_code: 'CMAU3754293',
+    sku: 'SKU-001',
+    quantity: 50,
+    volume_m3: 2.5,
+    doc_number: 'OUT-5001',
+    destination: 'Loja Centro',
+    responsible: 'Maria Costa',
+    timestamp: '2026-01-20T14:30:00Z',
+    value: 7500,
+  },
+]
+
 // Service Functions
 export const getClients = async () => Promise.resolve([...clients])
 export const getContainers = async () => Promise.resolve([...containers])
 export const getAllocations = async () => Promise.resolve([...allocations])
 export const getRecentActivity = async () =>
   Promise.resolve([...recentActivity])
+
+export const getInventory = async (containerId: string) => {
+  return Promise.resolve(
+    inventory.filter((i) => i.container_id === containerId && i.quantity > 0),
+  )
+}
+
+export const getEvents = async () => Promise.resolve([...events])
+
+export const createExitEvent = async (data: {
+  container_id: string
+  inventory_id: string
+  quantity: number
+  doc_number: string
+  destination: string
+  responsible: string
+}) => {
+  const itemIndex = inventory.findIndex((i) => i.id === data.inventory_id)
+  if (itemIndex === -1) throw new Error('Item not found')
+
+  const item = inventory[itemIndex]
+  if (item.quantity < data.quantity) throw new Error('Quantidade insuficiente')
+
+  const container = containers.find((c) => c.id === data.container_id)
+  if (!container) throw new Error('Container not found')
+
+  // Update Inventory
+  inventory[itemIndex] = {
+    ...item,
+    quantity: item.quantity - data.quantity,
+  }
+
+  // Create Event
+  const newEvent: LogisticsEvent = {
+    id: `evt${Date.now()}`,
+    type: 'exit',
+    container_id: data.container_id,
+    container_code: container.codigo,
+    sku: item.sku,
+    quantity: data.quantity,
+    volume_m3: item.unit_volume_m3 * data.quantity,
+    doc_number: data.doc_number,
+    destination: data.destination,
+    responsible: data.responsible,
+    timestamp: new Date().toISOString(),
+    value: item.unit_value * data.quantity,
+  }
+
+  events.unshift(newEvent)
+
+  // Also update recent activity
+  recentActivity.unshift({
+    id: `log${Date.now()}`,
+    message: `Saída registrada: ${data.quantity}x ${item.sku} de ${container.codigo}`,
+    timestamp: 'Agora',
+    type: 'warning',
+  })
+
+  return Promise.resolve(newEvent)
+}
 
 export const getDashboardStats = async (): Promise<DashboardStats> => {
   const activeAllocations = allocations.filter(

@@ -19,6 +19,7 @@ import {
   Settings,
   LogOut,
   Package,
+  History,
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -33,6 +34,7 @@ export function AppSidebar() {
     { icon: Users, label: 'Clientes', path: '/clientes' },
     { icon: Box, label: 'Containers', path: '/containers' },
     { icon: ClipboardList, label: 'Alocações', path: '/alocacoes' },
+    { icon: History, label: 'Movimentações', path: '/eventos' },
     { icon: BarChart3, label: 'Relatórios', path: '/relatorios' },
     { icon: Settings, label: 'Configurações', path: '/configuracoes' },
   ]

@@ -7,6 +7,7 @@ import Index from './pages/Index'
 import Clientes from './pages/Clientes'
 import Containers from './pages/Containers'
 import Alocacoes from './pages/Alocacoes'
+import Events from './pages/Events'
 import Relatorios from './pages/Relatorios'
 import Configuracoes from './pages/Configuracoes'
 import NotFound from './pages/NotFound'
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/clientes" element={<Clientes />} />
           <Route path="/containers" element={<Containers />} />
           <Route path="/alocacoes" element={<Alocacoes />} />
+          <Route path="/eventos" element={<Events />} />
           <Route path="/relatorios" element={<Relatorios />} />
           <Route path="/configuracoes" element={<Configuracoes />} />
         </Route>

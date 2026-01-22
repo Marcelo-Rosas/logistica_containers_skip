@@ -86,3 +86,28 @@ export type DashboardStats = {
     fill: string
   }[]
 }
+
+export type InventoryItem = {
+  id: string
+  container_id: string
+  sku: string
+  name: string
+  quantity: number
+  unit_volume_m3: number
+  unit_value: number
+}
+
+export type LogisticsEvent = {
+  id: string
+  type: 'entry' | 'exit'
+  container_id: string
+  container_code: string
+  sku: string
+  quantity: number
+  volume_m3: number
+  doc_number: string
+  destination: string
+  responsible: string
+  timestamp: string
+  value: number
+}
