@@ -1,8 +1,8 @@
 /* Mock service to simulate data fetching and operations */
 import { Client, Container, Allocation, ActivityLog } from './types'
 
-// Mock Data
-const clients: Client[] = [
+// Initial Data (Mutable to allow updates during session)
+let clients: Client[] = [
   {
     id: '1',
     nome: 'Importadora Global S.A.',
@@ -40,7 +40,7 @@ const clients: Client[] = [
   },
 ]
 
-const containers: Container[] = [
+let containers: Container[] = [
   {
     id: '101',
     codigo: 'CONT-A001',
@@ -88,7 +88,7 @@ const containers: Container[] = [
   },
 ]
 
-const allocations: Allocation[] = [
+let allocations: Allocation[] = [
   {
     id: 'a1',
     container_id: '101',
@@ -136,7 +136,7 @@ const allocations: Allocation[] = [
   },
 ]
 
-const recentActivity: ActivityLog[] = [
+let recentActivity: ActivityLog[] = [
   {
     id: '1',
     message: 'Container [CONT-A001] entrou para Importadora Global S.A.',
@@ -155,52 +155,135 @@ const recentActivity: ActivityLog[] = [
     timestamp: '1d atrás',
     type: 'info',
   },
-  {
-    id: '4',
-    message: 'Novo cliente registrado: Varejo Express',
-    timestamp: '2d atrás',
-    type: 'info',
-  },
-  {
-    id: '5',
-    message: 'Alerta: Container [CONT-B101] em manutenção',
-    timestamp: '3d atrás',
-    type: 'warning',
-  },
 ]
 
 // Service Functions
-export const getClients = async () => Promise.resolve(clients)
-export const getContainers = async () => Promise.resolve(containers)
-export const getAllocations = async () => Promise.resolve(allocations)
-export const getRecentActivity = async () => Promise.resolve(recentActivity)
+export const getClients = async () => Promise.resolve([...clients])
+export const getContainers = async () => Promise.resolve([...containers])
+export const getAllocations = async () => Promise.resolve([...allocations])
+export const getRecentActivity = async () =>
+  Promise.resolve([...recentActivity])
 
 export const getDashboardStats = async () => {
+  const activeAllocations = allocations.filter(
+    (a) => a.status === 'Ativo',
+  ).length
+  const occupiedContainers = containers.filter(
+    (c) => c.status === 'Ocupado',
+  ).length
+  const occupancyRate =
+    containers.length > 0
+      ? Math.round((occupiedContainers / containers.length) * 100)
+      : 0
+  const activeClients = new Set(
+    allocations.filter((a) => a.status === 'Ativo').map((a) => a.cliente_id),
+  ).size
+
   return Promise.resolve({
-    activeAllocations: allocations.filter((a) => a.status === 'Ativo').length,
-    occupancyRate: Math.round(
-      (containers.filter((c) => c.status === 'Ocupado').length /
-        containers.length) *
-        100,
-    ),
-    activeClients: new Set(
-      allocations.filter((a) => a.status === 'Ativo').map((a) => a.cliente_id),
-    ).size,
-    pendingExitCosts: 12500.0,
+    activeAllocations,
+    occupancyRate,
+    activeClients,
+    pendingExitCosts: 12500.0, // Hardcoded for simplicity
     nextBillingDate: '01/02/2026',
   })
 }
 
-export const registerEntry = async (data: any) => {
-  console.log('Mock: Entry registered', data)
+export const registerEntry = async (data: {
+  client: string
+  container: string
+  data_entrada: Date
+  file?: File | null
+}) => {
+  const client = clients.find((c) => c.id === data.client)
+  const container = containers.find((c) => c.id === data.container)
+
+  if (!client || !container) {
+    throw new Error('Cliente ou Container não encontrado')
+  }
+
+  const newAllocation: Allocation = {
+    id: `a${Date.now()}`,
+    container_id: container.id,
+    container_code: container.codigo,
+    cliente_id: client.id,
+    cliente_nome: client.nome,
+    data_entrada: data.data_entrada.toISOString(),
+    custo_mensal: container.capacidade === '40ft' ? 800 : 500, // Mock cost logic
+    created_at: new Date().toISOString(),
+    status: 'Ativo',
+    packing_list_url: data.file
+      ? `https://supabase-storage.com/packing-lists/${data.file.name}`
+      : undefined,
+  }
+
+  allocations.unshift(newAllocation)
+
+  // Update container status
+  const containerIndex = containers.findIndex((c) => c.id === container.id)
+  if (containerIndex >= 0) {
+    containers[containerIndex] = {
+      ...containers[containerIndex],
+      status: 'Ocupado',
+      cliente_id: client.id,
+    }
+  }
+
+  // Log activity
+  recentActivity.unshift({
+    id: `log${Date.now()}`,
+    message: `Nova alocação: ${container.codigo} para ${client.nome}`,
+    timestamp: 'Agora',
+    type: 'info',
+  })
+
   return Promise.resolve({
     success: true,
     message: 'Entrada registrada com sucesso!',
   })
 }
 
-export const registerExit = async (id: string) => {
-  console.log('Mock: Exit registered for allocation', id)
+export const registerExit = async (id: string, dataSaida: Date) => {
+  const allocationIndex = allocations.findIndex((a) => a.id === id)
+  if (allocationIndex === -1) throw new Error('Alocação não encontrada')
+
+  const allocation = allocations[allocationIndex]
+
+  // Update allocation
+  allocations[allocationIndex] = {
+    ...allocation,
+    status: 'Finalizado',
+    data_saida: dataSaida.toISOString(),
+  }
+
+  // Update container status
+  const containerIndex = containers.findIndex(
+    (c) => c.id === allocation.container_id,
+  )
+  if (containerIndex >= 0) {
+    containers[containerIndex] = {
+      ...containers[containerIndex],
+      status: 'Disponível',
+      cliente_id: undefined,
+    }
+  }
+
+  // Simulate Make.com trigger
+  console.log('--- MAKE.COM WEBHOOK TRIGGERED ---')
+  console.log('Payload:', {
+    allocationId: id,
+    exitDate: dataSaida,
+    costCalculation: true,
+  })
+  console.log('----------------------------------')
+
+  // Log activity
+  recentActivity.unshift({
+    id: `log${Date.now()}`,
+    message: `Saída registrada: ${allocation.container_code}`,
+    timestamp: 'Agora',
+    type: 'success',
+  })
+
   return Promise.resolve({
     success: true,
     message: 'Saída registrada e custos calculados!',
