@@ -38,12 +38,18 @@ export default function EventsPage() {
     getEvents().then(setEvents)
   }
 
-  const filteredEvents = events.filter(
-    (event) =>
-      event.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      event.doc_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      event.container_code.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  const filteredEvents = events.filter((event) => {
+    const term = (searchTerm || '').toLowerCase()
+    const sku = (event.sku || '').toLowerCase()
+    const docNumber = (event.doc_number || '').toLowerCase()
+    const containerCode = (event.container_code || '').toLowerCase()
+
+    return (
+      sku.includes(term) ||
+      docNumber.includes(term) ||
+      containerCode.includes(term)
+    )
+  })
 
   // KPI Calculations
   const currentMonth = new Date().getMonth()
@@ -52,8 +58,11 @@ export default function EventsPage() {
       e.type === 'exit' && new Date(e.timestamp).getMonth() === currentMonth,
   ).length
 
-  const totalVolume = events.reduce((acc, curr) => acc + curr.volume_m3, 0)
-  const totalValue = events.reduce((acc, curr) => acc + curr.value, 0)
+  const totalVolume = events.reduce(
+    (acc, curr) => acc + (curr.volume_m3 || 0),
+    0,
+  )
+  const totalValue = events.reduce((acc, curr) => acc + (curr.value || 0), 0)
 
   const handleExportCSV = () => {
     const headers = [
@@ -211,7 +220,7 @@ export default function EventsPage() {
                       {event.quantity}
                     </TableCell>
                     <TableCell className="text-right">
-                      {event.volume_m3.toFixed(3)}
+                      {(event.volume_m3 || 0).toFixed(3)}
                     </TableCell>
                     <TableCell>{event.doc_number}</TableCell>
                     <TableCell>{event.destination}</TableCell>
