@@ -20,9 +20,14 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ArrowLeft, FileText, LogOut, ExternalLink } from 'lucide-react'
+import {
+  ArrowLeft,
+  FileText,
+  LogOut,
+  ExternalLink,
+  ShieldCheck,
+} from 'lucide-react'
 import { NewExitEventDialog } from '@/components/NewExitEventDialog'
-import { Separator } from '@/components/ui/separator'
 
 export default function ContainerDetails() {
   const { id } = useParams()
@@ -85,56 +90,75 @@ export default function ContainerDetails() {
         </Button>
       </div>
 
-      {/* BL Association Card */}
-      {container.bl_id && (
-        <Card className="bg-slate-50 border-blue-100">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <FileText className="h-5 w-5 text-blue-600" />
+      <div className="grid md:grid-cols-2 gap-4">
+        {/* BL Association Card */}
+        {container.bl_id && (
+          <Card className="bg-slate-50 border-blue-100">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-500">
+                    Documento de Origem (BL)
+                  </p>
+                  <p className="text-lg font-bold text-slate-900">
+                    {container.bl_number || 'N/A'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-slate-500">
-                  Documento de Origem (BL)
-                </p>
-                <p className="text-lg font-bold text-slate-900">
-                  {container.bl_number || 'N/A'}
-                </p>
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(`/bl/${container.bl_id}`)}
+              >
+                Ver Documento <ExternalLink className="ml-2 h-3 w-3" />
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Seal Info Card */}
+        <Card className="bg-slate-50 border-slate-200">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 bg-slate-200 rounded-lg">
+              <ShieldCheck className="h-5 w-5 text-slate-700" />
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate(`/bl/${container.bl_id}`)}
-            >
-              Ver Documento <ExternalLink className="ml-2 h-3 w-3" />
-            </Button>
+            <div>
+              <p className="text-sm font-medium text-slate-500">
+                Lacre de Segurança (Seal)
+              </p>
+              <p className="text-lg font-bold text-slate-900">
+                {container.seal || 'Não informado'}
+              </p>
+            </div>
           </CardContent>
         </Card>
-      )}
+      </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Capacidade Total
+              Volume Total (M³)
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {container.total_volume_m3} m³
+              {container.total_volume_m3.toLocaleString()} m³
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Peso Total
+              Peso Bruto Total
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {(container.total_weight_kg / 1000).toFixed(1)} Ton
+              {container.total_weight_kg.toLocaleString()} kg
             </div>
           </CardContent>
         </Card>
@@ -170,7 +194,7 @@ export default function ContainerDetails() {
         <TabsContent value="inventory" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Itens Armazenados</CardTitle>
+              <CardTitle>Detailed Packing List</CardTitle>
               <CardDescription>
                 Lista de produtos atualmente no container.
               </CardDescription>
@@ -179,34 +203,42 @@ export default function ContainerDetails() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>SKU</TableHead>
-                    <TableHead>Produto</TableHead>
-                    <TableHead className="text-right">Quantidade</TableHead>
-                    <TableHead className="text-right">Vol. Unit (m³)</TableHead>
-                    <TableHead className="text-right">Total (m³)</TableHead>
+                    <TableHead>SKU / Model</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead>Embalagem</TableHead>
+                    <TableHead className="text-right">Qtd (Pcs)</TableHead>
+                    <TableHead className="text-right">Volumes (Pkg)</TableHead>
+                    <TableHead className="text-right">
+                      Peso Bruto (kg)
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {inventory.length > 0 ? (
                     inventory.map((item) => (
                       <TableRow key={item.id}>
-                        <TableCell className="font-mono">{item.sku}</TableCell>
+                        <TableCell className="font-mono font-medium">
+                          {item.sku}
+                        </TableCell>
                         <TableCell>{item.name}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-xs uppercase text-muted-foreground">
+                          {item.packaging_type || '-'}
+                        </TableCell>
+                        <TableCell className="text-right font-bold">
                           {item.quantity}
                         </TableCell>
                         <TableCell className="text-right">
-                          {item.unit_volume_m3}
+                          {item.package_count || '-'}
                         </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {(item.quantity * item.unit_volume_m3).toFixed(2)}
+                        <TableCell className="text-right">
+                          {item.gross_weight_kg?.toLocaleString() || '-'}
                         </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
                       <TableCell
-                        colSpan={5}
+                        colSpan={6}
                         className="text-center h-24 text-muted-foreground"
                       >
                         Nenhum item no inventário.

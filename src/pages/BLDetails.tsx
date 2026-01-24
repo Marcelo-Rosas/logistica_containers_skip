@@ -30,8 +30,9 @@ import {
   Box,
   AlertTriangle,
   FileJson,
-  FileText,
   CheckCircle2,
+  DollarSign,
+  Info,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -67,6 +68,11 @@ export default function BLDetails() {
         <div className="flex-1">
           <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             BL {bl.number}
+            {bl.internal_ref && (
+              <span className="text-lg font-normal text-muted-foreground">
+                | Ref: {bl.internal_ref}
+              </span>
+            )}
             {bl.status === 'Divergent' && (
               <Badge variant="destructive">Divergente</Badge>
             )}
@@ -81,10 +87,10 @@ export default function BLDetails() {
       <Tabs defaultValue="data" className="w-full">
         <TabsList>
           <TabsTrigger value="data">Dados da BL</TabsTrigger>
+          <TabsTrigger value="financial">Financeiro</TabsTrigger>
           <TabsTrigger value="containers">
             Containers ({containers.length})
           </TabsTrigger>
-          <TabsTrigger value="products">Produtos</TabsTrigger>
           <TabsTrigger value="edi">EDI Logs</TabsTrigger>
           <TabsTrigger
             value="divergences"
@@ -94,50 +100,128 @@ export default function BLDetails() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="data" className="mt-4">
+        <TabsContent value="data" className="mt-4 space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Informações Gerais</CardTitle>
+              <CardTitle>Parties (Entidades Envolvidas)</CardTitle>
             </CardHeader>
-            <CardContent className="grid md:grid-cols-2 gap-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Exportador</p>
-                  <p className="font-medium">{bl.shipper}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Importador</p>
-                  <p className="font-medium">{bl.consignee}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Navio</p>
-                  <p className="font-medium">{bl.vessel}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Viagem</p>
-                  <p className="font-medium">{bl.voyage}</p>
-                </div>
+            <CardContent className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Shipper</p>
+                <p className="font-medium text-sm">{bl.shipper}</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Origem</p>
-                  <p className="font-medium">{bl.port_of_loading}</p>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Consignee</p>
+                <p className="font-medium text-sm">{bl.consignee}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Notify Party</p>
+                <p className="font-medium text-sm">{bl.notify_party || '-'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">
+                  Forwarding Agent
+                </p>
+                <p className="font-medium text-sm">
+                  {bl.forwarding_agent || '-'}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Logística e Transporte</CardTitle>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-4 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Navio</p>
+                <p className="font-medium">{bl.vessel}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Viagem</p>
+                <p className="font-medium">{bl.voyage}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Porto de Origem</p>
+                <p className="font-medium">{bl.port_of_loading}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Porto de Destino
+                </p>
+                <p className="font-medium">{bl.port_of_discharge}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Totais Declarados</CardTitle>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-3 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Containers</p>
+                <p className="font-medium">{bl.container_count}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Peso Bruto Total
+                </p>
+                <p className="font-medium">
+                  {bl.total_weight_kg.toLocaleString()} kg
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Volume Total</p>
+                <p className="font-medium">
+                  {bl.total_volume_m3.toLocaleString()} m³
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="financial" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-emerald-600" />
+                Resumo Financeiro
+              </CardTitle>
+              <CardDescription>
+                Termos de frete e taxas associadas ao BL.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-2 gap-6">
+              <div className="p-4 bg-slate-50 rounded-lg border">
+                <h4 className="font-semibold mb-2">Freight Terms</h4>
+                <Badge variant="outline" className="text-lg">
+                  {bl.freight_terms || 'N/A'}
+                </Badge>
+              </div>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center border-b pb-2">
+                  <span className="text-muted-foreground">
+                    International Freight
+                  </span>
+                  <span className="font-bold text-lg">
+                    {bl.freight_cost?.toLocaleString('en-US', {
+                      style: 'currency',
+                      currency: bl.freight_currency || 'USD',
+                    })}
+                  </span>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Destino</p>
-                  <p className="font-medium">{bl.port_of_discharge}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Peso Total</p>
-                  <p className="font-medium">
-                    {bl.total_weight_kg.toLocaleString()} kg
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Volume Total</p>
-                  <p className="font-medium">
-                    {bl.total_volume_m3.toLocaleString()} m³
-                  </p>
+                <div className="flex justify-between items-center border-b pb-2">
+                  <span className="text-muted-foreground">
+                    Origin Handling Fee
+                  </span>
+                  <span className="font-bold text-lg">
+                    {bl.handling_fee?.toLocaleString('en-US', {
+                      style: 'currency',
+                      currency: bl.handling_fee_currency || 'USD',
+                    })}
+                  </span>
                 </div>
               </div>
             </CardContent>
@@ -155,6 +239,7 @@ export default function BLDetails() {
                   <TableRow>
                     <TableHead>Código</TableHead>
                     <TableHead>Tipo</TableHead>
+                    <TableHead>Lacre (Seal)</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Ação</TableHead>
                   </TableRow>
@@ -163,7 +248,8 @@ export default function BLDetails() {
                   {containers.map((c) => (
                     <TableRow key={c.id}>
                       <TableCell className="font-mono">{c.codigo}</TableCell>
-                      <TableCell>{c.capacidade}</TableCell>
+                      <TableCell>{c.tipo || c.capacidade}</TableCell>
+                      <TableCell>{c.seal || '-'}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{c.status}</Badge>
                       </TableCell>
@@ -184,14 +270,6 @@ export default function BLDetails() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="products" className="mt-4">
-          <Card>
-            <CardContent className="pt-6 text-center text-muted-foreground">
-              NCMs e produtos serão extraídos do Packing List.
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         <TabsContent value="edi" className="mt-4">
           <Card>
             <CardHeader>
@@ -199,26 +277,33 @@ export default function BLDetails() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {ediLogs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="border p-4 rounded-md flex justify-between items-start"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <FileJson className="h-4 w-4 text-blue-500" />
-                        <span className="font-mono text-sm">{log.id}</span>
-                        <Badge variant="outline">{log.status}</Badge>
+                {ediLogs.length > 0 ? (
+                  ediLogs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="border p-4 rounded-md flex justify-between items-start"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <FileJson className="h-4 w-4 text-blue-500" />
+                          <span className="font-mono text-sm">{log.id}</span>
+                          <Badge variant="outline">{log.status}</Badge>
+                        </div>
+                        <pre className="text-xs bg-slate-100 p-2 rounded text-muted-foreground overflow-x-auto max-w-xl">
+                          {log.payload_snippet}
+                        </pre>
                       </div>
-                      <pre className="text-xs bg-slate-100 p-2 rounded text-muted-foreground overflow-x-auto max-w-xl">
-                        {log.payload_snippet}
-                      </pre>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(log.received_at).toLocaleString()}
+                      </span>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(log.received_at).toLocaleString()}
-                    </span>
+                  ))
+                ) : (
+                  <div className="flex flex-col items-center py-8 text-muted-foreground">
+                    <Info className="h-8 w-8 mb-2 opacity-50" />
+                    <p>Nenhum log EDI encontrado.</p>
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>

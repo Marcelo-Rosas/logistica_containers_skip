@@ -6,6 +6,7 @@ export type Client = {
   contato: string
   email: string
   created_at: string
+  cnpj?: string // Added for data completeness
 }
 
 export type ContainerStatus =
@@ -45,6 +46,7 @@ export type Container = {
   arrival_date?: string
   storage_start_date?: string
   base_cost_brl?: number // Base storage cost
+  seal?: string // New field
 }
 
 export type Allocation = {
@@ -119,6 +121,12 @@ export type InventoryItem = {
   quantity: number
   unit_volume_m3: number
   unit_value: number
+  // New fields
+  model?: string
+  packaging_type?: string
+  gross_weight_kg?: number
+  net_weight_kg?: number
+  package_count?: number
 }
 
 export type LogisticsEvent = {
@@ -141,10 +149,13 @@ export type LogisticsEvent = {
 export type BillOfLading = {
   id: string
   number: string
+  internal_ref?: string // New field
   client_id: string
   client_name: string
   shipper: string
   consignee: string
+  notify_party?: string // New field
+  forwarding_agent?: string // New field (optional but good to have)
   vessel: string
   voyage: string
   port_of_loading: string
@@ -155,6 +166,12 @@ export type BillOfLading = {
   status: 'Pending' | 'Processed' | 'Divergent' | 'Cleared'
   created_at: string
   file_url?: string
+  // Financials
+  freight_terms?: string // New field
+  freight_cost?: number // New field
+  freight_currency?: string // New field
+  handling_fee?: number // New field
+  handling_fee_currency?: string // New field
 }
 
 export type Divergence = {

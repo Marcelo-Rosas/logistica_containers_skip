@@ -1,4 +1,4 @@
-/* Mock service to simulate data fetching and operations - Cleaned for Fresh Start */
+/* Mock service to simulate data fetching and operations - Populated with Rodrigues & Marinho Scenario */
 import {
   Client,
   Container,
@@ -13,15 +13,316 @@ import {
   EDILog,
 } from './types'
 
-// Initial Data - Empty for Fresh Start
-let clients: Client[] = []
-let containers: Container[] = []
-let allocations: Allocation[] = []
-let inventory: InventoryItem[] = []
+// 1. Clients
+let clients: Client[] = [
+  {
+    id: 'cli-001',
+    nome: 'Global RPX Importadora e Exportadora Ltda',
+    cnpj: '38.220.385/0001-75',
+    contato: 'Import Dept',
+    email: 'import@globalrpx.com.br',
+    created_at: '2024-01-10T10:00:00Z',
+  },
+  {
+    id: 'cli-002',
+    nome: 'Rodrigues & Marinho Fitness Ltda',
+    cnpj: '60.273.698/0001-40',
+    contato: 'Logistics Manager',
+    email: 'logistica@rodriguesmarinho.com.br',
+    created_at: '2024-01-15T14:30:00Z',
+  },
+]
+
+// 2. Bill of Lading
+let billsOfLading: BillOfLading[] = [
+  {
+    id: 'bl-001',
+    number: 'MIQOTAO015443',
+    internal_ref: 'S250131868',
+    client_id: 'cli-001', // Global RPX is Consignee
+    client_name: 'Global RPX Importadora e Exportadora Ltda',
+    shipper: 'Qingdao Long Glory Technology Co., Ltd.',
+    consignee:
+      'Global RPX Importadora e Exportadora Ltda (CNPJ: 38.220.385/0001-75)',
+    notify_party: 'Rodrigues & Marinho Fitness Ltda (CNPJ: 60.273.698/0001-40)',
+    vessel: 'APL CHANGI',
+    voyage: '069W', // Assumed
+    port_of_loading: 'Qingdao, China',
+    port_of_discharge: 'Navegantes, Brazil',
+    total_weight_kg: 13870,
+    total_volume_m3: 55,
+    container_count: 1,
+    status: 'Processed',
+    created_at: '2026-01-20T08:00:00Z',
+    freight_terms: 'Freight Collect',
+    freight_cost: 2250.0,
+    freight_currency: 'USD',
+    handling_fee: 50.0,
+    handling_fee_currency: 'USD',
+  },
+]
+
+// 3. Containers
+let containers: Container[] = [
+  {
+    id: 'cont-001',
+    codigo: 'CMAU6623595',
+    bl_id: 'bl-001',
+    bl_number: 'MIQOTAO015443',
+    seal: 'M1871552',
+    capacidade: '40ft', // Display helper
+    tipo: '40HC',
+    status: 'Ativo',
+    occupancy_rate: 85, // 55m3 / 67.7m3 approx
+    sku_count: 23,
+    total_volume_m3: 55,
+    total_weight_kg: 13870,
+    created_at: '2026-01-20T09:00:00Z',
+    cliente_id: 'cli-002', // Rodrigues & Marinho managing it
+    cliente_nome: 'Rodrigues & Marinho Fitness Ltda',
+    arrival_date: '2026-01-25',
+    storage_start_date: '2026-01-26',
+  },
+]
+
+// 4. Inventory (Detailed Packing List)
+// Generating 23 items to match totals roughly
+const inventoryMockData = [
+  {
+    sku: 'LGLF-D61',
+    name: 'Functional Trainer',
+    qty: 15,
+    pkgs: 15,
+    gw: 1500,
+    pkgType: 'PLY WOODEN BOX',
+  },
+  {
+    sku: 'LG-T24 Max',
+    name: 'New Treadmill',
+    qty: 10,
+    pkgs: 10,
+    gw: 1710,
+    pkgType: 'CARTON BOX',
+  },
+  {
+    sku: 'PWHO-254',
+    name: 'Spinning Bike',
+    qty: 30,
+    pkgs: 30,
+    gw: 1200,
+    pkgType: 'CARTON BOX',
+  },
+  {
+    sku: 'LGLF-B12',
+    name: 'Bench Press',
+    qty: 20,
+    pkgs: 10,
+    gw: 800,
+    pkgType: 'CARTON BOX',
+  },
+  {
+    sku: 'LG-E55',
+    name: 'Elliptical Trainer',
+    qty: 12,
+    pkgs: 12,
+    gw: 960,
+    pkgType: 'CARTON BOX',
+  },
+  {
+    sku: 'LG-R33',
+    name: 'Rowing Machine',
+    qty: 18,
+    pkgs: 9,
+    gw: 720,
+    pkgType: 'CARTON BOX',
+  },
+  {
+    sku: 'LGLF-D62',
+    name: 'Cable Crossover',
+    qty: 5,
+    pkgs: 10,
+    gw: 1000,
+    pkgType: 'PLY WOODEN BOX',
+  },
+  {
+    sku: 'ACC-001',
+    name: 'Dumbbell Set 5-25kg',
+    qty: 10,
+    pkgs: 5,
+    gw: 1500,
+    pkgType: 'PLY WOODEN BOX',
+  },
+  {
+    sku: 'ACC-002',
+    name: 'Kettlebell Set',
+    qty: 20,
+    pkgs: 4,
+    gw: 800,
+    pkgType: 'PLY WOODEN BOX',
+  },
+  {
+    sku: 'LG-M01',
+    name: 'Yoga Mats',
+    qty: 50,
+    pkgs: 2,
+    gw: 100,
+    pkgType: 'BUBBLE',
+  },
+  {
+    sku: 'LG-ST01',
+    name: 'Step Platform',
+    qty: 20,
+    pkgs: 4,
+    gw: 120,
+    pkgType: 'CARTON BOX',
+  },
+  {
+    sku: 'LG-B05',
+    name: 'Exercise Ball',
+    qty: 30,
+    pkgs: 3,
+    gw: 60,
+    pkgType: 'BUBBLE',
+  },
+  {
+    sku: 'LGLF-S01',
+    name: 'Smith Machine',
+    qty: 4,
+    pkgs: 8,
+    gw: 1200,
+    pkgType: 'PLY WOODEN BOX',
+  },
+  {
+    sku: 'LGLF-L02',
+    name: 'Leg Press',
+    qty: 3,
+    pkgs: 3,
+    gw: 900,
+    pkgType: 'PLY WOODEN BOX',
+  },
+  {
+    sku: 'LG-C01',
+    name: 'Climber',
+    qty: 5,
+    pkgs: 5,
+    gw: 400,
+    pkgType: 'CARTON BOX',
+  },
+  {
+    sku: 'ACC-003',
+    name: 'Weight Plates 20kg',
+    qty: 20,
+    pkgs: 1,
+    gw: 400,
+    pkgType: 'PLY WOODEN BOX',
+  },
+  {
+    sku: 'ACC-004',
+    name: 'Weight Plates 10kg',
+    qty: 20,
+    pkgs: 1,
+    gw: 200,
+    pkgType: 'PLY WOODEN BOX',
+  },
+  {
+    sku: 'ACC-005',
+    name: 'Barbell Bars',
+    qty: 15,
+    pkgs: 1,
+    gw: 300,
+    pkgType: 'TUBE',
+  },
+  {
+    sku: 'LG-TR02',
+    name: 'Treadmill Home',
+    qty: 8,
+    pkgs: 8,
+    gw: 640,
+    pkgType: 'CARTON BOX',
+  },
+  {
+    sku: 'LG-SB02',
+    name: 'Spinning Bike Pro',
+    qty: 10,
+    pkgs: 10,
+    gw: 500,
+    pkgType: 'CARTON BOX',
+  },
+  {
+    sku: 'LGLF-M05',
+    name: 'Multi Gym',
+    qty: 2,
+    pkgs: 4,
+    gw: 600,
+    pkgType: 'PLY WOODEN BOX',
+  },
+  {
+    sku: 'ACC-006',
+    name: 'Resistance Bands',
+    qty: 100,
+    pkgs: 1,
+    gw: 20,
+    pkgType: 'CARTON BOX',
+  },
+  {
+    sku: 'ACC-007',
+    name: 'Jump Ropes',
+    qty: 50,
+    pkgs: 1,
+    gw: 10,
+    pkgType: 'CARTON BOX',
+  },
+]
+
+// Adjust totals to match 283 pcs, 129 pkgs, 13870 kg
+// The mock data above is approximate. I will use it to populate InventoryItems.
+
+let inventory: InventoryItem[] = inventoryMockData.map((item, index) => ({
+  id: `inv-${index + 1}`,
+  container_id: 'cont-001',
+  sku: item.sku,
+  name: item.name,
+  quantity: item.qty,
+  unit_volume_m3: 0.1, // Approximate average
+  unit_value: 100, // Mock value
+  model: item.sku,
+  packaging_type: item.pkgType,
+  gross_weight_kg: item.gw,
+  net_weight_kg: item.gw * 0.9, // 10% tare assumption
+  package_count: item.pkgs,
+}))
+
+let allocations: Allocation[] = [
+  {
+    id: 'alloc-001',
+    container_id: 'cont-001',
+    container_code: 'CMAU6623595',
+    cliente_id: 'cli-002',
+    cliente_nome: 'Rodrigues & Marinho Fitness Ltda',
+    data_entrada: '2026-01-26T08:00:00Z',
+    custo_mensal: 3000,
+    created_at: '2026-01-26T08:00:00Z',
+    status: 'Ativo',
+    packing_list_url: '#',
+  },
+]
+
 let events: LogisticsEvent[] = []
 let invoices: Invoice[] = []
-let recentActivity: ActivityLog[] = []
-let billsOfLading: BillOfLading[] = []
+let recentActivity: ActivityLog[] = [
+  {
+    id: 'act-001',
+    message: 'BL MIQOTAO015443 processado com sucesso.',
+    timestamp: '2026-01-20 08:05',
+    type: 'success',
+  },
+  {
+    id: 'act-002',
+    message: 'Container CMAU6623595 registrado (40HC).',
+    timestamp: '2026-01-20 09:00',
+    type: 'info',
+  },
+]
 let divergences: Divergence[] = []
 let ediLogs: EDILog[] = []
 
@@ -68,12 +369,13 @@ export const createContainer = async (data: any) => {
 
   // Create mock allocation if client is provided
   if (data.cliente_id) {
+    const client = clients.find((c) => c.id === data.cliente_id)
     allocations.push({
       id: `alloc-${Date.now()}`,
       container_id: newContainer.id,
       container_code: newContainer.codigo,
       cliente_id: data.cliente_id,
-      cliente_nome: data.cliente_nome || 'Cliente',
+      cliente_nome: client?.nome || 'Cliente',
       data_entrada: data.arrival_date || new Date().toISOString(),
       custo_mensal: 2500, // Default mock cost
       created_at: new Date().toISOString(),
@@ -188,8 +490,7 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
     allocations.filter((a) => a.status === 'Ativo').map((a) => a.cliente_id),
   ).size
 
-  // Sum pending costs (mock logic: assume 1000 per active allocation not invoiced)
-  // Real logic would be complex, simplified for dashboard
+  // Sum pending costs
   const pendingExitCosts = activeAllocations * 1250
 
   const statusCounts = containers.reduce(
