@@ -6,7 +6,7 @@ export type Client = {
   contato: string
   email: string
   created_at: string
-  cnpj?: string // Added for data completeness
+  cnpj?: string
 }
 
 export type ContainerStatus =
@@ -31,24 +31,23 @@ export type Container = {
   id: string
   cliente_id?: string
   cliente_nome?: string
-  bl_id?: string // Linked BL
-  bl_number?: string // Helper for display
+  bl_id?: string
+  bl_number?: string
   codigo: string
-  bl_number_legacy?: string // Keeping for backward compatibility if needed, but bl_id is primary
+  bl_number_legacy?: string
   capacidade: string
   tipo?: string
   status: ContainerStatus
-  occupancy_rate: number // 0-100
+  occupancy_rate: number
   sku_count: number
-  total_volume_m3: number // Current volume occupied by cargo
+  total_volume_m3: number
   total_weight_kg: number
   created_at: string
   arrival_date?: string
   storage_start_date?: string
-  seal?: string // New field
-  // New billing fields
-  initial_capacity_m3?: number // Max capacity for billing (e.g. 76 for 40HC)
-  base_monthly_cost?: number // Base price (e.g. 3200)
+  seal?: string
+  initial_capacity_m3?: number
+  base_monthly_cost?: number
 }
 
 export type Allocation = {
@@ -60,7 +59,7 @@ export type Allocation = {
   data_entrada: string
   data_saida?: string
   packing_list_url?: string
-  custo_mensal: number // Keeps legacy or override
+  custo_mensal: number
   created_at: string
   status: 'Ativo' | 'Finalizado'
 }
@@ -79,8 +78,7 @@ export type InvoiceItem = {
   description: string
   amount: number
   type: 'storage' | 'exit_fee' | 'handling' | 'other'
-  reference_id?: string // container_id or event_id
-  // New billing details
+  reference_id?: string
   calculation_method?: 'pro_rata' | 'volume_snapshot'
   days_pro_rated?: number
   snapshot_date?: string
@@ -131,7 +129,6 @@ export type InventoryItem = {
   quantity: number
   unit_volume_m3: number
   unit_value: number
-  // New fields
   model?: string
   packaging_type?: string
   gross_weight_kg?: number
@@ -155,17 +152,16 @@ export type LogisticsEvent = {
   fee?: number
 }
 
-// New Types for BL Story
 export type BillOfLading = {
   id: string
   number: string
-  internal_ref?: string // New field
+  internal_ref?: string
   client_id: string
   client_name: string
   shipper: string
   consignee: string
-  notify_party?: string // New field
-  forwarding_agent?: string // New field (optional but good to have)
+  notify_party?: string
+  forwarding_agent?: string
   vessel: string
   voyage: string
   port_of_loading: string
@@ -176,12 +172,11 @@ export type BillOfLading = {
   status: 'Pending' | 'Processed' | 'Divergent' | 'Cleared'
   created_at: string
   file_url?: string
-  // Financials
-  freight_terms?: string // New field
-  freight_cost?: number // New field
-  freight_currency?: string // New field
-  handling_fee?: number // New field
-  handling_fee_currency?: string // New field
+  freight_terms?: string
+  freight_cost?: number
+  freight_currency?: string
+  handling_fee?: number
+  handling_fee_currency?: string
 }
 
 export type Divergence = {
@@ -209,4 +204,19 @@ export type EDILog = {
   payload_snippet: string
   received_at: string
   status: 'Matched' | 'Divergent' | 'Orphaned'
+}
+
+export type SystemSettings = {
+  tariffs: {
+    dry20: number
+    dry40: number
+    dry40hc: number
+    rounding: boolean
+  }
+  measurement: {
+    day: number
+    time: string
+    auto: boolean
+    notify: boolean
+  }
 }

@@ -7,7 +7,7 @@ import Index from './pages/Index'
 import Clientes from './pages/Clientes'
 import Containers from './pages/Containers'
 import ContainerDetails from './pages/ContainerDetails'
-import Alocacoes from './pages/Alocacoes'
+// Alocacoes page removed
 import Events from './pages/Events'
 import Relatorios from './pages/Relatorios'
 import Configuracoes from './pages/Configuracoes'
@@ -41,7 +41,7 @@ const App = () => (
           <Route path="/clientes" element={<Clientes />} />
           <Route path="/containers" element={<Containers />} />
           <Route path="/containers/:id" element={<ContainerDetails />} />
-          <Route path="/alocacoes" element={<Alocacoes />} />
+          {/* Route path="/alocacoes" removed */}
           <Route path="/eventos" element={<Events />} />
           <Route path="/faturamento" element={<Faturamento />} />
           <Route path="/relatorios" element={<Relatorios />} />

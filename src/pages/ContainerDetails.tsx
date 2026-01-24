@@ -3,13 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { getContainer, getInventory, getEvents } from '@/lib/mock-service'
 import { Container, InventoryItem, LogisticsEvent } from '@/lib/types'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -26,6 +20,8 @@ import {
   LogOut,
   ExternalLink,
   ShieldCheck,
+  PackageCheck,
+  Cuboid,
 } from 'lucide-react'
 import { NewExitEventDialog } from '@/components/NewExitEventDialog'
 
@@ -43,7 +39,7 @@ export default function ContainerDetails() {
     try {
       setLoading(true)
       const containerData = await getContainer(id)
-      setContainer(containerData)
+      setContainer({ ...containerData }) // Force new reference
 
       const [inventoryData, eventsData] = await Promise.all([
         getInventory(containerData.id),
@@ -67,6 +63,11 @@ export default function ContainerDetails() {
 
   if (loading) return <div className="p-8">Carregando detalhes...</div>
   if (!container) return <div className="p-8">Container não encontrado.</div>
+
+  // Calculate remaining volume info
+  const capacity = container.initial_capacity_m3 || 67.7
+  const usedVolume = container.total_volume_m3
+  const availableVolume = Math.max(0, capacity - usedVolume)
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -138,28 +139,30 @@ export default function ContainerDetails() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Volume Total (M³)
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Cuboid className="h-4 w-4" /> Volume Ocupado
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {container.total_volume_m3.toLocaleString()} m³
+              {usedVolume.toLocaleString('pt-BR', { maximumFractionDigits: 3 })}{' '}
+              m³
             </div>
+            <p className="text-xs text-muted-foreground">
+              Atualizado pós-movimentação
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Peso Bruto Total
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <PackageCheck className="h-4 w-4" /> Capacidade Total
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {container.total_weight_kg.toLocaleString()} kg
-            </div>
+            <div className="text-2xl font-bold">{capacity} m³</div>
           </CardContent>
         </Card>
         <Card>
@@ -171,6 +174,12 @@ export default function ContainerDetails() {
           <CardContent>
             <div className="text-2xl font-bold">
               {container.occupancy_rate}%
+            </div>
+            <div className="w-full bg-secondary h-1.5 rounded-full mt-2">
+              <div
+                className="bg-primary h-1.5 rounded-full transition-all"
+                style={{ width: `${container.occupancy_rate}%` }}
+              ></div>
             </div>
           </CardContent>
         </Card>
@@ -195,9 +204,6 @@ export default function ContainerDetails() {
           <Card>
             <CardHeader>
               <CardTitle>Detailed Packing List</CardTitle>
-              <CardDescription>
-                Lista de produtos atualmente no container.
-              </CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -254,9 +260,6 @@ export default function ContainerDetails() {
           <Card>
             <CardHeader>
               <CardTitle>Log de Movimentações</CardTitle>
-              <CardDescription>
-                Histórico completo de entradas e saídas.
-              </CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -266,6 +269,7 @@ export default function ContainerDetails() {
                     <TableHead>Tipo</TableHead>
                     <TableHead>SKU</TableHead>
                     <TableHead>Qtd</TableHead>
+                    <TableHead>Vol. (m³)</TableHead>
                     <TableHead>Doc</TableHead>
                     <TableHead>Resp.</TableHead>
                   </TableRow>
@@ -275,12 +279,7 @@ export default function ContainerDetails() {
                     events.map((event) => (
                       <TableRow key={event.id}>
                         <TableCell>
-                          {new Date(event.timestamp).toLocaleDateString(
-                            'pt-BR',
-                          )}{' '}
-                          {new Date(event.timestamp).toLocaleTimeString(
-                            'pt-BR',
-                          )}
+                          {new Date(event.timestamp).toLocaleString('pt-BR')}
                         </TableCell>
                         <TableCell>
                           <Badge
@@ -298,6 +297,7 @@ export default function ContainerDetails() {
                         </TableCell>
                         <TableCell>{event.sku}</TableCell>
                         <TableCell>{event.quantity}</TableCell>
+                        <TableCell>{event.volume_m3.toFixed(3)}</TableCell>
                         <TableCell>{event.doc_number}</TableCell>
                         <TableCell>{event.responsible}</TableCell>
                       </TableRow>
@@ -305,7 +305,7 @@ export default function ContainerDetails() {
                   ) : (
                     <TableRow>
                       <TableCell
-                        colSpan={6}
+                        colSpan={7}
                         className="text-center h-24 text-muted-foreground"
                       >
                         Nenhum evento registrado.

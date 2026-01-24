@@ -14,7 +14,6 @@ import {
   LayoutDashboard,
   Users,
   Box,
-  ClipboardList,
   BarChart3,
   Settings,
   LogOut,
@@ -38,7 +37,7 @@ export function AppSidebar() {
     { icon: Users, label: 'Clientes', path: '/clientes' },
     { icon: Box, label: 'Containers', path: '/containers' },
     { icon: AlertTriangle, label: 'Divergências', path: '/divergencias' },
-    { icon: ClipboardList, label: 'Alocações', path: '/alocacoes' },
+    // "Alocações" removed as per UI Streamlining requirement
     { icon: History, label: 'Movimentações', path: '/eventos' },
     { icon: Receipt, label: 'Faturamento', path: '/faturamento' },
     { icon: BarChart3, label: 'Relatórios', path: '/relatorios' },

@@ -18,17 +18,20 @@ import {
   Search,
   Download,
   LogOut,
+  LogIn,
   Calendar,
 } from 'lucide-react'
 import { getEvents } from '@/lib/mock-service'
 import { LogisticsEvent } from '@/lib/types'
 import { NewExitEventDialog } from '@/components/NewExitEventDialog'
+import { NewEntryEventDialog } from '@/components/NewEntryEventDialog'
 import { cn } from '@/lib/utils'
 
 export default function EventsPage() {
   const [events, setEvents] = useState<LogisticsEvent[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [isExitDialogOpen, setIsExitDialogOpen] = useState(false)
+  const [isEntryDialogOpen, setIsEntryDialogOpen] = useState(false)
 
   useEffect(() => {
     loadEvents()
@@ -99,15 +102,26 @@ export default function EventsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-3xl font-bold tracking-tight">
-          Movimentações Logísticas
-        </h2>
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">
+            Movimentações Logísticas
+          </h2>
+          <p className="text-muted-foreground">
+            Entradas, saídas e histórico completo
+          </p>
+        </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleExportCSV}>
-            <Download className="mr-2 h-4 w-4" /> Exportar CSV
+            <Download className="mr-2 h-4 w-4" /> CSV
+          </Button>
+          <Button
+            onClick={() => setIsEntryDialogOpen(true)}
+            variant="secondary"
+          >
+            <LogIn className="mr-2 h-4 w-4" /> Entrada
           </Button>
           <Button onClick={() => setIsExitDialogOpen(true)}>
-            <LogOut className="mr-2 h-4 w-4" /> Registrar Saída
+            <LogOut className="mr-2 h-4 w-4" /> Saída
           </Button>
         </div>
       </div>
@@ -241,49 +255,15 @@ export default function EventsPage() {
         </CardContent>
       </Card>
 
-      {/* Operational Documentation Section */}
-      <section className="bg-slate-50 border rounded-lg p-6 space-y-4">
-        <div className="space-y-1">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            Monitorando pedidos por status de remessa
-          </h3>
-          <p className="text-xs text-muted-foreground">
-            Atualizado pela última vez: 2026-01-20
-          </p>
-        </div>
-
-        <div className="space-y-4 text-sm text-slate-700">
-          <p>
-            Depois que um pedido entra no processamento de remessa, o sistema de
-            monitoramento de status de remessa começa a rastrear o status de
-            remessa das linhas de pedido ou linhas de agendamento de remessa.
-            Isso envolve verificar a entrega, a rota e a atribuição de carga.
-          </p>
-          <p>
-            Depois que o pedido sai do depósito do fabricante, a Business
-            Transaction Intelligence registra todas as mensagens de status de
-            remessa ao longo do caminho, determinando o status geral do pedido
-            com base nessas atualizações contínuas.
-          </p>
-          <p>
-            Mensagens de status de remessa são eventos que afetam o andamento de
-            uma remessa, como atrasos, provas de entrega ou chegadas
-            antecipadas. Essas informações são cruciais para medidas preventivas
-            e para evitar a perda de pedidos, especialmente para clientes com
-            planejamento sensível a prazos.
-          </p>
-        </div>
-
-        <div className="pt-4 border-t border-slate-200">
-          <p className="text-xs font-medium text-slate-500">
-            Tópico principal: Gestão de Eventos e Rastreabilidade
-          </p>
-        </div>
-      </section>
-
       <NewExitEventDialog
         open={isExitDialogOpen}
         onOpenChange={setIsExitDialogOpen}
+        onSuccess={loadEvents}
+      />
+
+      <NewEntryEventDialog
+        open={isEntryDialogOpen}
+        onOpenChange={setIsEntryDialogOpen}
         onSuccess={loadEvents}
       />
     </div>

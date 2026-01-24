@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Card,
   CardContent,
@@ -17,81 +17,57 @@ import {
   DollarSign,
   Calendar,
   Bell,
-  Database,
-  Activity,
   Plug,
-  Globe,
+  Activity,
   Server,
+  Database,
+  Globe,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
+import { getSettings, updateSettings } from '@/lib/mock-service'
+import { SystemSettings } from '@/lib/types'
 
 export default function Configuracoes() {
   const [loading, setLoading] = useState(false)
-
-  // Tariffs State - Reset to empty/defaults
-  const [tariffs, setTariffs] = useState({
-    dry20: '0.00',
-    dry40: '0.00',
-    dry40hc: '0.00',
+  const [tariffs, setTariffs] = useState<SystemSettings['tariffs']>({
+    dry20: 0,
+    dry40: 0,
+    dry40hc: 0,
     rounding: true,
   })
-
-  // Measurement State - Reset to defaults
-  const [measurement, setMeasurement] = useState({
-    day: 25,
-    time: '18:00',
-    auto: false,
-    notify: false,
-  })
-
-  // Notifications State - Reset
-  const [notifications, setNotifications] = useState({
-    scheduled: false,
-    exit: false,
-    divergence: false,
-    invoice: false,
-    export: false,
-  })
-
-  // Integrations Mock Data
-  const integrations = [
+  const [measurement, setMeasurement] = useState<SystemSettings['measurement']>(
     {
-      id: 'wms',
-      name: 'WMS Integration',
-      type: 'Warehouse',
-      status: 'disconnected',
-      icon: Server,
-      description: 'Sincronização de estoque e movimentações físicas.',
-      lastSync: 'Nunca',
+      day: 25,
+      time: '18:00',
+      auto: false,
+      notify: false,
     },
-    {
-      id: 'erp',
-      name: 'ERP Totvs Protheus',
-      type: 'Financeiro',
-      status: 'disconnected',
-      icon: Database,
-      description: 'Emissão automática de notas e faturamento.',
-      lastSync: 'Nunca',
-    },
-    {
-      id: 'api',
-      name: 'API REST Public',
-      type: 'External',
-      status: 'disconnected',
-      icon: Globe,
-      description: 'Gateway para consulta de status por clientes.',
-      lastSync: 'Offline',
-    },
-  ]
+  )
 
-  const handleSave = () => {
+  useEffect(() => {
+    loadConfig()
+  }, [])
+
+  const loadConfig = async () => {
+    const settings = await getSettings()
+    setTariffs(settings.tariffs)
+    setMeasurement(settings.measurement)
+  }
+
+  const handleSave = async () => {
     setLoading(true)
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false)
+    try {
+      await updateSettings({
+        tariffs,
+        measurement,
+      })
       toast.success('Configurações salvas com sucesso!')
-    }, 1000)
+    } catch (e) {
+      toast.error('Erro ao salvar')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -122,13 +98,13 @@ export default function Configuracoes() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Tariffs Tab */}
         <TabsContent value="tariffs" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Tabela de Preços</CardTitle>
+              <CardTitle>Base Container Value (Mensal)</CardTitle>
               <CardDescription>
-                Defina os valores mensais de armazenagem por tipo de container.
+                Defina os valores base de armazenagem. O faturamento será
+                calculado proporcionalmente ao volume ocupado.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -142,9 +118,13 @@ export default function Configuracoes() {
                     <Input
                       id="price-20"
                       className="pl-9"
+                      type="number"
                       value={tariffs.dry20}
                       onChange={(e) =>
-                        setTariffs({ ...tariffs, dry20: e.target.value })
+                        setTariffs({
+                          ...tariffs,
+                          dry20: Number(e.target.value),
+                        })
                       }
                     />
                   </div>
@@ -158,9 +138,13 @@ export default function Configuracoes() {
                     <Input
                       id="price-40"
                       className="pl-9"
+                      type="number"
                       value={tariffs.dry40}
                       onChange={(e) =>
-                        setTariffs({ ...tariffs, dry40: e.target.value })
+                        setTariffs({
+                          ...tariffs,
+                          dry40: Number(e.target.value),
+                        })
                       }
                     />
                   </div>
@@ -174,9 +158,13 @@ export default function Configuracoes() {
                     <Input
                       id="price-40hc"
                       className="pl-9"
+                      type="number"
                       value={tariffs.dry40hc}
                       onChange={(e) =>
-                        setTariffs({ ...tariffs, dry40hc: e.target.value })
+                        setTariffs({
+                          ...tariffs,
+                          dry40hc: Number(e.target.value),
+                        })
                       }
                     />
                   </div>
@@ -207,13 +195,13 @@ export default function Configuracoes() {
           </Card>
         </TabsContent>
 
-        {/* Measurement Tab */}
         <TabsContent value="measurement" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Regras de Medição</CardTitle>
               <CardDescription>
-                Configure o ciclo de faturamento e snapshots automáticos.
+                Configure o ciclo de faturamento. Faturas vencem 10 dias após o
+                corte.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -266,22 +254,6 @@ export default function Configuracoes() {
                     }
                   />
                 </div>
-                <div className="flex items-center justify-between space-x-2 rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">
-                      Notificar Antes da Medição
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Enviar alerta para administradores 24h antes do corte.
-                    </p>
-                  </div>
-                  <Switch
-                    checked={measurement.notify}
-                    onCheckedChange={(c) =>
-                      setMeasurement({ ...measurement, notify: c })
-                    }
-                  />
-                </div>
               </div>
             </CardContent>
             <CardFooter>
@@ -293,154 +265,22 @@ export default function Configuracoes() {
           </Card>
         </TabsContent>
 
-        {/* Notifications Tab */}
+        {/* Placeholder contents for other tabs */}
         <TabsContent value="notifications" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Preferências de Alerta</CardTitle>
-              <CardDescription>
-                Escolha quais eventos devem gerar notificações no sistema e
-                e-mail.
-              </CardDescription>
+              <CardTitle>Notificações</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4">
-              <div className="flex items-center justify-between space-x-2">
-                <Label htmlFor="notif-scheduled" className="flex flex-col">
-                  <span>Medição Agendada</span>
-                  <span className="font-normal text-xs text-muted-foreground">
-                    Alertas sobre proximidade da data de corte.
-                  </span>
-                </Label>
-                <Switch
-                  id="notif-scheduled"
-                  checked={notifications.scheduled}
-                  onCheckedChange={(c) =>
-                    setNotifications({ ...notifications, scheduled: c })
-                  }
-                />
-              </div>
-              <div className="flex items-center justify-between space-x-2">
-                <Label htmlFor="notif-exit" className="flex flex-col">
-                  <span>Saída Registrada</span>
-                  <span className="font-normal text-xs text-muted-foreground">
-                    Quando um container é retirado do pátio.
-                  </span>
-                </Label>
-                <Switch
-                  id="notif-exit"
-                  checked={notifications.exit}
-                  onCheckedChange={(c) =>
-                    setNotifications({ ...notifications, exit: c })
-                  }
-                />
-              </div>
-              <div className="flex items-center justify-between space-x-2">
-                <Label htmlFor="notif-divergence" className="flex flex-col">
-                  <span>Discrepância Detectada</span>
-                  <span className="font-normal text-xs text-muted-foreground">
-                    Diferenças entre BL físico e dados EDI.
-                  </span>
-                </Label>
-                <Switch
-                  id="notif-divergence"
-                  checked={notifications.divergence}
-                  onCheckedChange={(c) =>
-                    setNotifications({ ...notifications, divergence: c })
-                  }
-                />
-              </div>
-              <div className="flex items-center justify-between space-x-2">
-                <Label htmlFor="notif-invoice" className="flex flex-col">
-                  <span>Fatura Gerada</span>
-                  <span className="font-normal text-xs text-muted-foreground">
-                    Confirmação de fechamento mensal.
-                  </span>
-                </Label>
-                <Switch
-                  id="notif-invoice"
-                  checked={notifications.invoice}
-                  onCheckedChange={(c) =>
-                    setNotifications({ ...notifications, invoice: c })
-                  }
-                />
-              </div>
-              <div className="flex items-center justify-between space-x-2">
-                <Label htmlFor="notif-export" className="flex flex-col">
-                  <span>Exportação Concluída</span>
-                  <span className="font-normal text-xs text-muted-foreground">
-                    Sucesso no envio de dados para ERP/WMS.
-                  </span>
-                </Label>
-                <Switch
-                  id="notif-export"
-                  checked={notifications.export}
-                  onCheckedChange={(c) =>
-                    setNotifications({ ...notifications, export: c })
-                  }
-                />
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button onClick={handleSave} disabled={loading}>
-                {loading && <Activity className="mr-2 h-4 w-4 animate-spin" />}
-                Salvar Alterações
-              </Button>
-            </CardFooter>
+            <CardContent>Configurações de notificação (Mock)</CardContent>
           </Card>
         </TabsContent>
-
-        {/* Integrations Tab */}
         <TabsContent value="integrations" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {integrations.map((integration) => (
-              <Card key={integration.id} className="flex flex-col">
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <integration.icon className="h-6 w-6 text-primary" />
-                    </div>
-                    {integration.status === 'active' ? (
-                      <Badge className="bg-emerald-500 hover:bg-emerald-600">
-                        Conectado
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary">Desconectado</Badge>
-                    )}
-                  </div>
-                  <CardTitle className="mt-4 text-lg">
-                    {integration.name}
-                  </CardTitle>
-                  <CardDescription>{integration.type}</CardDescription>
-                </CardHeader>
-                <CardContent className="flex-1">
-                  <p className="text-sm text-muted-foreground">
-                    {integration.description}
-                  </p>
-                  <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-                    <Activity className="h-3 w-3" />
-                    Última sinc: {integration.lastSync}
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button
-                    variant={
-                      integration.status === 'active' ? 'outline' : 'default'
-                    }
-                    className="w-full"
-                    onClick={() =>
-                      toast.info(
-                        `Configuração de ${integration.name} indisponível na demo.`,
-                      )
-                    }
-                  >
-                    {integration.status === 'active'
-                      ? 'Configurar'
-                      : 'Conectar'}
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Integrações</CardTitle>
+            </CardHeader>
+            <CardContent>Configurações de integração (Mock)</CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

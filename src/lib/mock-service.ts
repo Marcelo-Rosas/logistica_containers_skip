@@ -12,10 +12,26 @@ import {
   Divergence,
   EDILog,
   InvoiceItem,
+  SystemSettings,
 } from './types'
-import { addDays, differenceInDays, isBefore, isAfter, getDate } from 'date-fns'
+import { addDays, differenceInDays } from 'date-fns'
 
-// 1. Clients
+// --- MOCK DATA ---
+let settings: SystemSettings = {
+  tariffs: {
+    dry20: 2500,
+    dry40: 3000,
+    dry40hc: 3200,
+    rounding: true,
+  },
+  measurement: {
+    day: 25,
+    time: '18:00',
+    auto: false,
+    notify: false,
+  },
+}
+
 let clients: Client[] = [
   {
     id: 'cli-001',
@@ -35,20 +51,19 @@ let clients: Client[] = [
   },
 ]
 
-// 2. Bill of Lading
 let billsOfLading: BillOfLading[] = [
   {
     id: 'bl-001',
     number: 'MIQOTAO015443',
     internal_ref: 'S250131868',
-    client_id: 'cli-001', // Global RPX is Consignee
+    client_id: 'cli-001',
     client_name: 'Global RPX Importadora e Exportadora Ltda',
     shipper: 'Qingdao Long Glory Technology Co., Ltd.',
     consignee:
       'Global RPX Importadora e Exportadora Ltda (CNPJ: 38.220.385/0001-75)',
     notify_party: 'Rodrigues & Marinho Fitness Ltda (CNPJ: 60.273.698/0001-40)',
     vessel: 'APL CHANGI',
-    voyage: '069W', // Assumed
+    voyage: '069W',
     port_of_loading: 'Qingdao, China',
     port_of_discharge: 'Navegantes, Brazil',
     total_weight_kg: 13870,
@@ -64,7 +79,6 @@ let billsOfLading: BillOfLading[] = [
   },
 ]
 
-// 3. Containers
 let containers: Container[] = [
   {
     id: 'cont-001',
@@ -72,210 +86,28 @@ let containers: Container[] = [
     bl_id: 'bl-001',
     bl_number: 'MIQOTAO015443',
     seal: 'M1871552',
-    capacidade: '40ft', // Display helper
+    capacidade: '40ft',
     tipo: '40HC',
     status: 'Ativo',
-    occupancy_rate: 85, // 55m3 / 67.7m3 approx
+    occupancy_rate: 85,
     sku_count: 23,
     total_volume_m3: 55,
     total_weight_kg: 13870,
     created_at: '2026-01-20T09:00:00Z',
-    cliente_id: 'cli-002', // Rodrigues & Marinho managing it
+    cliente_id: 'cli-002',
     cliente_nome: 'Rodrigues & Marinho Fitness Ltda',
     arrival_date: '2026-01-25',
     storage_start_date: '2026-01-26',
-    initial_capacity_m3: 67.7, // Standard 40HC volume for billing denominator
-    base_monthly_cost: 3200.0, // Base price for 40HC
+    initial_capacity_m3: 67.7,
+    base_monthly_cost: 3200.0,
   },
 ]
 
-// 4. Inventory (Detailed Packing List)
-// Generating 23 items to match totals roughly
+// Mock Inventory Items
 const inventoryMockData = [
-  {
-    sku: 'LGLF-D61',
-    name: 'Functional Trainer',
-    qty: 15,
-    pkgs: 15,
-    gw: 1500,
-    pkgType: 'PLY WOODEN BOX',
-  },
-  {
-    sku: 'LG-T24 Max',
-    name: 'New Treadmill',
-    qty: 10,
-    pkgs: 10,
-    gw: 1710,
-    pkgType: 'CARTON BOX',
-  },
-  {
-    sku: 'PWHO-254',
-    name: 'Spinning Bike',
-    qty: 30,
-    pkgs: 30,
-    gw: 1200,
-    pkgType: 'CARTON BOX',
-  },
-  {
-    sku: 'LGLF-B12',
-    name: 'Bench Press',
-    qty: 20,
-    pkgs: 10,
-    gw: 800,
-    pkgType: 'CARTON BOX',
-  },
-  {
-    sku: 'LG-E55',
-    name: 'Elliptical Trainer',
-    qty: 12,
-    pkgs: 12,
-    gw: 960,
-    pkgType: 'CARTON BOX',
-  },
-  {
-    sku: 'LG-R33',
-    name: 'Rowing Machine',
-    qty: 18,
-    pkgs: 9,
-    gw: 720,
-    pkgType: 'CARTON BOX',
-  },
-  {
-    sku: 'LGLF-D62',
-    name: 'Cable Crossover',
-    qty: 5,
-    pkgs: 10,
-    gw: 1000,
-    pkgType: 'PLY WOODEN BOX',
-  },
-  {
-    sku: 'ACC-001',
-    name: 'Dumbbell Set 5-25kg',
-    qty: 10,
-    pkgs: 5,
-    gw: 1500,
-    pkgType: 'PLY WOODEN BOX',
-  },
-  {
-    sku: 'ACC-002',
-    name: 'Kettlebell Set',
-    qty: 20,
-    pkgs: 4,
-    gw: 800,
-    pkgType: 'PLY WOODEN BOX',
-  },
-  {
-    sku: 'LG-M01',
-    name: 'Yoga Mats',
-    qty: 50,
-    pkgs: 2,
-    gw: 100,
-    pkgType: 'BUBBLE',
-  },
-  {
-    sku: 'LG-ST01',
-    name: 'Step Platform',
-    qty: 20,
-    pkgs: 4,
-    gw: 120,
-    pkgType: 'CARTON BOX',
-  },
-  {
-    sku: 'LG-B05',
-    name: 'Exercise Ball',
-    qty: 30,
-    pkgs: 3,
-    gw: 60,
-    pkgType: 'BUBBLE',
-  },
-  {
-    sku: 'LGLF-S01',
-    name: 'Smith Machine',
-    qty: 4,
-    pkgs: 8,
-    gw: 1200,
-    pkgType: 'PLY WOODEN BOX',
-  },
-  {
-    sku: 'LGLF-L02',
-    name: 'Leg Press',
-    qty: 3,
-    pkgs: 3,
-    gw: 900,
-    pkgType: 'PLY WOODEN BOX',
-  },
-  {
-    sku: 'LG-C01',
-    name: 'Climber',
-    qty: 5,
-    pkgs: 5,
-    gw: 400,
-    pkgType: 'CARTON BOX',
-  },
-  {
-    sku: 'ACC-003',
-    name: 'Weight Plates 20kg',
-    qty: 20,
-    pkgs: 1,
-    gw: 400,
-    pkgType: 'PLY WOODEN BOX',
-  },
-  {
-    sku: 'ACC-004',
-    name: 'Weight Plates 10kg',
-    qty: 20,
-    pkgs: 1,
-    gw: 200,
-    pkgType: 'PLY WOODEN BOX',
-  },
-  {
-    sku: 'ACC-005',
-    name: 'Barbell Bars',
-    qty: 15,
-    pkgs: 1,
-    gw: 300,
-    pkgType: 'TUBE',
-  },
-  {
-    sku: 'LG-TR02',
-    name: 'Treadmill Home',
-    qty: 8,
-    pkgs: 8,
-    gw: 640,
-    pkgType: 'CARTON BOX',
-  },
-  {
-    sku: 'LG-SB02',
-    name: 'Spinning Bike Pro',
-    qty: 10,
-    pkgs: 10,
-    gw: 500,
-    pkgType: 'CARTON BOX',
-  },
-  {
-    sku: 'LGLF-M05',
-    name: 'Multi Gym',
-    qty: 2,
-    pkgs: 4,
-    gw: 600,
-    pkgType: 'PLY WOODEN BOX',
-  },
-  {
-    sku: 'ACC-006',
-    name: 'Resistance Bands',
-    qty: 100,
-    pkgs: 1,
-    gw: 20,
-    pkgType: 'CARTON BOX',
-  },
-  {
-    sku: 'ACC-007',
-    name: 'Jump Ropes',
-    qty: 50,
-    pkgs: 1,
-    gw: 10,
-    pkgType: 'CARTON BOX',
-  },
+  { sku: 'LGLF-D61', name: 'Functional Trainer', qty: 15, gw: 1500 },
+  { sku: 'LG-T24 Max', name: 'New Treadmill', qty: 10, gw: 1710 },
+  { sku: 'PWHO-254', name: 'Spinning Bike', qty: 30, gw: 1200 },
 ]
 
 let inventory: InventoryItem[] = inventoryMockData.map((item, index) => ({
@@ -284,13 +116,10 @@ let inventory: InventoryItem[] = inventoryMockData.map((item, index) => ({
   sku: item.sku,
   name: item.name,
   quantity: item.qty,
-  unit_volume_m3: 0.1, // Approximate average
-  unit_value: 100, // Mock value
-  model: item.sku,
-  packaging_type: item.pkgType,
+  unit_volume_m3: 0.5, // approx
+  unit_value: 100,
   gross_weight_kg: item.gw,
-  net_weight_kg: item.gw * 0.9, // 10% tare assumption
-  package_count: item.pkgs,
+  package_count: 10,
 }))
 
 let allocations: Allocation[] = [
@@ -301,7 +130,7 @@ let allocations: Allocation[] = [
     cliente_id: 'cli-002',
     cliente_nome: 'Rodrigues & Marinho Fitness Ltda',
     data_entrada: '2026-01-26T08:00:00Z',
-    custo_mensal: 3000, // This might be overridden by dynamic calculation
+    custo_mensal: 3000,
     created_at: '2026-01-26T08:00:00Z',
     status: 'Ativo',
     packing_list_url: '#',
@@ -310,24 +139,20 @@ let allocations: Allocation[] = [
 
 let events: LogisticsEvent[] = []
 let invoices: Invoice[] = []
-let recentActivity: ActivityLog[] = [
-  {
-    id: 'act-001',
-    message: 'BL MIQOTAO015443 processado com sucesso.',
-    timestamp: '2026-01-20 08:05',
-    type: 'success',
-  },
-  {
-    id: 'act-002',
-    message: 'Container CMAU6623595 registrado (40HC).',
-    timestamp: '2026-01-20 09:00',
-    type: 'info',
-  },
-]
+let recentActivity: ActivityLog[] = []
 let divergences: Divergence[] = []
 let ediLogs: EDILog[] = []
 
-// Service Functions
+// --- API FUNCTIONS ---
+
+// Settings
+export const getSettings = async () => Promise.resolve({ ...settings })
+export const updateSettings = async (newSettings: SystemSettings) => {
+  settings = newSettings
+  return Promise.resolve(settings)
+}
+
+// Clients
 export const getClients = async () => Promise.resolve([...clients])
 export const createClient = async (data: Omit<Client, 'id' | 'created_at'>) => {
   const newClient: Client = {
@@ -339,25 +164,23 @@ export const createClient = async (data: Omit<Client, 'id' | 'created_at'>) => {
   return Promise.resolve(newClient)
 }
 
+// Containers
 export const getContainers = async () => Promise.resolve([...containers])
 export const getContainer = async (id: string) => {
   const container = containers.find((c) => c.id === id || c.codigo === id)
   if (!container) throw new Error('Container not found')
   return Promise.resolve(container)
 }
-export const getAllocations = async () => Promise.resolve([...allocations])
-export const getRecentActivity = async () =>
-  Promise.resolve([...recentActivity])
-export const getInventory = async (containerId: string) =>
-  Promise.resolve(
-    inventory.filter((i) => i.container_id === containerId && i.quantity > 0),
-  )
-export const getEvents = async () => Promise.resolve([...events])
-export const getInvoices = async () => Promise.resolve([...invoices])
 
 export const createContainer = async (data: any) => {
   const is40 =
     data.tipo?.includes('40') || data.capacidade?.includes('40') || false
+  const isHC = data.tipo?.includes('HC') || false
+
+  let basePrice = settings.tariffs.dry20
+  if (is40) basePrice = settings.tariffs.dry40
+  if (isHC) basePrice = settings.tariffs.dry40hc
+
   const newContainer: Container = {
     id: `c${Date.now()}`,
     ...data,
@@ -367,9 +190,8 @@ export const createContainer = async (data: any) => {
     sku_count: 0,
     total_volume_m3: 0,
     total_weight_kg: 0,
-    // Defaults based on type
-    initial_capacity_m3: is40 ? 67.7 : 33.2,
-    base_monthly_cost: is40 ? 3200.0 : 2200.0,
+    initial_capacity_m3: isHC ? 76.4 : is40 ? 67.7 : 33.2,
+    base_monthly_cost: basePrice,
   }
   containers.unshift(newContainer)
 
@@ -387,142 +209,12 @@ export const createContainer = async (data: any) => {
       status: 'Ativo',
     })
   }
-
   return Promise.resolve(newContainer)
 }
 
-export const getBLs = async () => Promise.resolve([...billsOfLading])
-export const getBL = async (id: string) =>
-  Promise.resolve(billsOfLading.find((b) => b.id === id))
-export const getDivergences = async () => Promise.resolve([...divergences])
-export const getEDILogs = async (blId: string) =>
-  Promise.resolve(ediLogs.filter((e) => e.bl_id === blId))
-
-export const uploadBL = async (file: File, clientId: string) => {
-  await new Promise((resolve) => setTimeout(resolve, 2000))
-
-  const client = clients.find((c) => c.id === clientId)
-  const mockNumber = `BL${Math.floor(Math.random() * 1000000)}`
-
-  return {
-    number: mockNumber,
-    client_id: clientId,
-    client_name: client?.nome || 'Unknown',
-    shipper: 'Global Suppliers Ltd',
-    consignee: client?.nome || 'Unknown',
-    vessel: 'MSC SIMULATION',
-    voyage: '101W',
-    port_of_loading: 'SHANGHAI',
-    port_of_discharge: 'SANTOS',
-    total_weight_kg: 24500,
-    total_volume_m3: 33.2,
-    container_count: 1,
-    containers: [
-      {
-        codigo: `MSCU${Math.floor(Math.random() * 1000000)}`,
-        tipo: "Dry Box 20'",
-        seal: '123456',
-        weight: 24500,
-      },
-    ],
-  }
-}
-
-export const createBL = async (data: any) => {
-  const newBL: BillOfLading = {
-    id: `bl-${Date.now()}`,
-    ...data,
-    status: 'Processed',
-    created_at: new Date().toISOString(),
-  }
-
-  billsOfLading.unshift(newBL)
-
-  data.containers.forEach((c: any) => {
-    const is40 = c.tipo.includes('40')
-    containers.unshift({
-      id: `c-${Date.now()}-${Math.random()}`,
-      codigo: c.codigo,
-      bl_number: newBL.number,
-      bl_id: newBL.id,
-      capacidade: is40 ? '40ft' : '20ft',
-      tipo: c.tipo,
-      status: 'Pendente',
-      occupancy_rate: 0,
-      sku_count: 0,
-      total_volume_m3: 0,
-      total_weight_kg: c.weight,
-      created_at: new Date().toISOString(),
-      cliente_id: newBL.client_id,
-      cliente_nome: newBL.client_name,
-      initial_capacity_m3: is40 ? 67.7 : 33.2,
-      base_monthly_cost: is40 ? 3200.0 : 2200.0,
-    })
-  })
-
-  recentActivity.unshift({
-    id: `act-${Date.now()}`,
-    type: 'success',
-    message: `BL ${newBL.number} cadastrado com ${data.containers.length} containers.`,
-    timestamp: 'Agora',
-  })
-
-  return Promise.resolve(newBL)
-}
-
-export const getDashboardStats = async (): Promise<DashboardStats> => {
-  const activeAllocations = allocations.filter(
-    (a) => a.status === 'Ativo',
-  ).length
-
-  const activeContainers = containers.filter(
-    (c) => c.status !== 'Vazio' && c.status !== 'Pendente',
-  )
-  const occupancyRate =
-    activeContainers.length > 0
-      ? Math.round(
-          activeContainers.reduce((acc, c) => acc + c.occupancy_rate, 0) /
-            activeContainers.length,
-        )
-      : 0
-
-  const activeClients = new Set(
-    allocations.filter((a) => a.status === 'Ativo').map((a) => a.cliente_id),
-  ).size
-
-  const pendingExitCosts = activeAllocations * 1250
-
-  const statusCounts = containers.reduce(
-    (acc, c) => {
-      acc[c.status] = (acc[c.status] || 0) + 1
-      return acc
-    },
-    {} as Record<string, number>,
-  )
-
-  const statusDistribution = Object.entries(statusCounts).map(
-    ([status, count]) => ({
-      status,
-      count,
-      fill: '',
-    }),
-  )
-
-  const nextMonth = new Date()
-  if (nextMonth.getDate() > 25) {
-    nextMonth.setMonth(nextMonth.getMonth() + 1)
-  }
-  nextMonth.setDate(25)
-
-  return Promise.resolve({
-    activeAllocations,
-    occupancyRate,
-    activeClients,
-    pendingExitCosts,
-    nextBillingDate: nextMonth.toLocaleDateString('pt-BR'),
-    statusDistribution,
-  })
-}
+// Allocations & Events
+export const getAllocations = async () => Promise.resolve([...allocations])
+export const getEvents = async () => Promise.resolve([...events])
 
 export const registerEntry = async (data: any) => {
   const container = containers.find((c) => c.id === data.container)
@@ -533,9 +225,6 @@ export const registerEntry = async (data: any) => {
     container.cliente_id = client.id
     container.cliente_nome = client.nome
     container.storage_start_date = data.data_entrada
-    // Ensure billing defaults if missing
-    if (!container.base_monthly_cost) container.base_monthly_cost = 3200
-    if (!container.initial_capacity_m3) container.initial_capacity_m3 = 67.7
 
     allocations.push({
       id: `alloc-${Date.now()}`,
@@ -544,9 +233,24 @@ export const registerEntry = async (data: any) => {
       cliente_id: client.id,
       cliente_nome: client.nome,
       data_entrada: data.data_entrada,
-      custo_mensal: container.base_monthly_cost,
+      custo_mensal: container.base_monthly_cost || 3000,
       created_at: new Date().toISOString(),
       status: 'Ativo',
+    })
+
+    events.unshift({
+      id: `evt-${Date.now()}`,
+      type: 'entry',
+      container_id: container.id,
+      container_code: container.codigo,
+      sku: 'ALL',
+      quantity: 1,
+      volume_m3: container.total_volume_m3,
+      doc_number: 'ENTRY',
+      destination: 'WAREHOUSE',
+      responsible: 'SYSTEM',
+      timestamp: new Date().toISOString(),
+      value: 0,
     })
   }
 
@@ -578,17 +282,17 @@ export const createExitEvent = async (data: any) => {
     timestamp: new Date().toISOString(),
   } as LogisticsEvent
 
-  events.unshift(evt)
-
   const item = inventory.find((i) => i.id === data.inventory_id)
   if (item) {
     item.quantity -= data.quantity
+    evt.sku = item.sku // ensure sku is passed
     evt.volume_m3 = item.unit_volume_m3 * data.quantity
     evt.value = item.unit_value * data.quantity
 
     // Update container metrics
     const container = containers.find((c) => c.id === data.container_id)
     if (container) {
+      // Direct post-movement state update as per requirement
       container.total_volume_m3 = Math.max(
         0,
         container.total_volume_m3 - evt.volume_m3,
@@ -598,11 +302,111 @@ export const createExitEvent = async (data: any) => {
           (container.total_volume_m3 / container.initial_capacity_m3) * 100,
         )
       }
+      evt.container_code = container.codigo // Ensure code is present
     }
   }
 
+  // Persistent Logging
+  events.unshift(evt)
+
   return Promise.resolve(evt)
 }
+
+// Inventory
+export const getInventory = async (containerId: string) =>
+  Promise.resolve(
+    inventory.filter((i) => i.container_id === containerId && i.quantity > 0),
+  )
+
+// BLs & Divergences
+export const getBLs = async () => Promise.resolve([...billsOfLading])
+export const getBL = async (id: string) =>
+  Promise.resolve(billsOfLading.find((b) => b.id === id))
+export const createBL = async (data: any) => {
+  const newBL: BillOfLading = {
+    id: `bl-${Date.now()}`,
+    ...data,
+    status: 'Processed',
+    created_at: new Date().toISOString(),
+  }
+  billsOfLading.unshift(newBL)
+  return Promise.resolve(newBL)
+}
+export const uploadBL = async (file: File, clientId: string) => {
+  // Mock OCR logic
+  const client = clients.find((c) => c.id === clientId)
+  return {
+    number: `BL${Math.floor(Math.random() * 1000000)}`,
+    client_id: clientId,
+    client_name: client?.nome || 'Unknown',
+    shipper: 'Global Suppliers Ltd',
+    consignee: client?.nome || 'Unknown',
+    vessel: 'MSC SIMULATION',
+    voyage: '101W',
+    port_of_loading: 'SHANGHAI',
+    port_of_discharge: 'SANTOS',
+    total_weight_kg: 24500,
+    total_volume_m3: 33.2,
+    container_count: 1,
+    containers: [
+      {
+        codigo: `MSCU${Math.floor(Math.random() * 1000000)}`,
+        tipo: "Dry Box 20'",
+        seal: '123456',
+        weight: 24500,
+      },
+    ],
+  }
+}
+export const getDivergences = async () => Promise.resolve([...divergences])
+export const getEDILogs = async (blId: string) =>
+  Promise.resolve(ediLogs.filter((e) => e.bl_id === blId))
+
+// Dashboard & Billing
+export const getDashboardStats = async (): Promise<DashboardStats> => {
+  const activeAllocations = allocations.filter(
+    (a) => a.status === 'Ativo',
+  ).length
+  const activeContainers = containers.filter(
+    (c) => c.status !== 'Vazio' && c.status !== 'Pendente',
+  )
+  const occupancyRate =
+    activeContainers.length > 0
+      ? Math.round(
+          activeContainers.reduce((acc, c) => acc + c.occupancy_rate, 0) /
+            activeContainers.length,
+        )
+      : 0
+  const activeClients = new Set(
+    allocations.filter((a) => a.status === 'Ativo').map((a) => a.cliente_id),
+  ).size
+  const pendingExitCosts = activeAllocations * 1000 // approx
+
+  const statusCounts = containers.reduce(
+    (acc, c) => {
+      acc[c.status] = (acc[c.status] || 0) + 1
+      return acc
+    },
+    {} as Record<string, number>,
+  )
+
+  return Promise.resolve({
+    activeAllocations,
+    occupancyRate,
+    activeClients,
+    pendingExitCosts,
+    nextBillingDate: `${settings.measurement.day}/${new Date().getMonth() + 2}`, // approx
+    statusDistribution: Object.entries(statusCounts).map(([status, count]) => ({
+      status,
+      count,
+      fill: '',
+    })),
+  })
+}
+
+export const getRecentActivity = async () =>
+  Promise.resolve([...recentActivity])
+export const getInvoices = async () => Promise.resolve([...invoices])
 
 export const generateMeasurements = async () =>
   Promise.resolve({
@@ -610,23 +414,7 @@ export const generateMeasurements = async () =>
     message: 'Processamento de medições concluído.',
   })
 
-// --- NEW BILLING LOGIC ---
-
-// Helper to get volume at a specific past date
-const getVolumeAtDate = (container: Container, date: Date) => {
-  // Current volume is the volume AFTER all exits.
-  // To get past volume, we must ADD back the volume of exits that happened AFTER the date.
-  const exitsAfterDate = events.filter(
-    (e) =>
-      e.container_id === container.id &&
-      e.type === 'exit' &&
-      new Date(e.timestamp) > date,
-  )
-
-  const volumeRestored = exitsAfterDate.reduce((sum, e) => sum + e.volume_m3, 0)
-  return container.total_volume_m3 + volumeRestored
-}
-
+// --- REFINED BILLING LOGIC ---
 export const simulateBilling = async () => {
   const simulated: Invoice[] = []
   const groupedAllocations: Record<string, Allocation[]> = {}
@@ -634,19 +422,24 @@ export const simulateBilling = async () => {
   const today = new Date()
   const currentYear = today.getFullYear()
   const currentMonth = today.getMonth()
+  const measurementDay = settings.measurement.day
 
-  // Determine Next Measurement Date (25th of current or next month)
-  let nextMeasurementDate = new Date(currentYear, currentMonth, 25)
-  // If today is past the 25th, we are in the cycle ending next month
-  // But usually simulation is for the *upcoming* invoice.
-  // If today is Jan 26, the next invoice is Feb 25.
-  if (today.getDate() > 25) {
-    nextMeasurementDate = new Date(currentYear, currentMonth + 1, 25)
+  // Determine Next Measurement Date
+  let nextMeasurementDate = new Date(currentYear, currentMonth, measurementDay)
+  if (today.getDate() > measurementDay) {
+    nextMeasurementDate = new Date(
+      currentYear,
+      currentMonth + 1,
+      measurementDay,
+    )
   }
 
-  // Determine Previous Measurement Date (Start of this cycle)
+  // Previous Measurement Date
   const prevMeasurementDate = new Date(nextMeasurementDate)
   prevMeasurementDate.setMonth(prevMeasurementDate.getMonth() - 1)
+
+  // Due Date Logic: Measurement + 10 days
+  const dueDate = addDays(nextMeasurementDate, 10).toISOString()
 
   allocations.forEach((a) => {
     if (
@@ -668,7 +461,11 @@ export const simulateBilling = async () => {
       const container = containers.find((c) => c.id === alloc.container_id)
       if (!container) return
 
-      const baseCost = container.base_monthly_cost || 3200
+      // Determine Base Price dynamically from Settings
+      let basePrice = settings.tariffs.dry20
+      if (container.tipo?.includes('40')) basePrice = settings.tariffs.dry40
+      if (container.tipo?.includes('HC')) basePrice = settings.tariffs.dry40hc
+
       const capacity = container.initial_capacity_m3 || 67.7
       const entryDate = new Date(alloc.data_entrada)
 
@@ -677,72 +474,43 @@ export const simulateBilling = async () => {
       let calculationMethod: 'pro_rata' | 'volume_snapshot'
       let meta: Partial<InvoiceItem> = {}
 
-      // Logic: First Month Pro-rata OR Volume Snapshot
-      // Check if entry date is AFTER the previous measurement date
-      // Meaning: This is the first billing cycle for this container
+      // Logic: First Month Pro-rata vs Subsequent Volume Snapshot
       if (entryDate > prevMeasurementDate) {
-        // Pro-rata: (Days until 25th / 30) * Base
+        // First Month Logic: Pro-rata
         const daysActive = differenceInDays(nextMeasurementDate, entryDate)
-        // Ensure at least 1 day if entered same day? Spec says "Days until 25th"
         const daysToBill = Math.max(1, daysActive)
 
-        amount = (daysToBill / 30) * baseCost
+        amount = (daysToBill / 30) * basePrice
         description = `Armazenagem (Pro-rata) - ${container.codigo}`
         calculationMethod = 'pro_rata'
 
         meta = {
           days_pro_rated: daysToBill,
-          snapshot_date: nextMeasurementDate.toISOString(),
-          base_cost: baseCost,
+          base_cost: basePrice,
         }
       } else {
         // Subsequent Month: Volume Snapshot Logic
-        // Bill based on volume at the START of the period (Previous Snapshot)
-        // Spec: "Snapshot on 25th ... to determine billing for subsequent period"
-        // So we look at volume at `prevMeasurementDate`.
-        // However, exits BEFORE 25th reduce the bill.
+        // Formula: (Remaining Volume / Original Volume) * Base Container Value
+        const currentVolume = container.total_volume_m3
+        const ratio = Math.min(1, currentVolume / capacity)
+        amount = ratio * basePrice
 
-        // Let's use the volume at `prevMeasurementDate` (The snapshot that started this period)
-        // Wait, Spec: "If exit before 25th ... reduced bill for NEXT month".
-        // This implies the bill generated ON the 25th covers the PAST period or FUTURE?
-        // Usually storage is billed month-to-month.
-        // If "Snapshot on 25th determines billing for SUBSEQUENT period", then:
-        // Jan 25 Snapshot -> Determines Bill for Jan 26-Feb 25.
-        // We are currently simulating the bill generated ON `nextMeasurementDate`.
-        // This bill covers the period ending on `nextMeasurementDate`?
-        // Or is it a pre-bill for next month?
-        // "Medição ... record snapshot ... determine billing for subsequent period".
-        // This sounds like: Jan 25 Snapshot -> Bill for Feb.
-        // So the bill we generate NOW (approaching Jan 25) is based on... what?
-        // Likely the Jan 25 bill covers the period that just passed (Jan 10-25) if pro-rata.
-        // And for old containers, it covers Dec 26 - Jan 25.
-        // And the COST is determined by the Dec 25 Snapshot.
-
-        // Let's stick to:
-        // If Old Container: Cost = (Volume @ Last Snapshot / Capacity) * Base.
-        // Last Snapshot = `prevMeasurementDate`.
-
-        const volumeAtSnapshot = getVolumeAtDate(container, prevMeasurementDate)
-        const occupancy = Math.min(100, (volumeAtSnapshot / capacity) * 100)
-        const factor = volumeAtSnapshot / capacity
-
-        amount = factor * baseCost
         description = `Armazenagem (Volume) - ${container.codigo}`
         calculationMethod = 'volume_snapshot'
 
         meta = {
-          snapshot_date: prevMeasurementDate.toISOString(),
-          used_volume_m3: Number(volumeAtSnapshot.toFixed(2)),
-          occupancy_percentage: Number(occupancy.toFixed(1)),
-          base_cost: baseCost,
-          savings: baseCost - amount,
+          snapshot_date: nextMeasurementDate.toISOString(),
+          used_volume_m3: Number(currentVolume.toFixed(2)),
+          occupancy_percentage: Number((ratio * 100).toFixed(1)),
+          base_cost: basePrice,
+          savings: basePrice - amount,
         }
       }
 
       items.push({
         id: `item-${Math.random()}`,
         description,
-        amount,
+        amount: settings.tariffs.rounding ? Number(amount.toFixed(2)) : amount,
         type: 'storage',
         reference_id: container.id,
         calculation_method: calculationMethod,
@@ -758,7 +526,7 @@ export const simulateBilling = async () => {
       year: nextMeasurementDate.getFullYear(),
       total_amount: items.reduce((sum, i) => sum + i.amount, 0),
       status: 'Draft',
-      due_date: addDays(nextMeasurementDate, 10).toISOString(), // Due 10 days after measurement
+      due_date: dueDate,
       created_at: new Date().toISOString(),
       items,
     })
