@@ -13,6 +13,17 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import {
   Settings,
   DollarSign,
   Calendar,
@@ -22,13 +33,21 @@ import {
   Server,
   Database,
   Globe,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
-import { getSettings, updateSettings } from '@/lib/mock-service'
+import {
+  getSettings,
+  updateSettings,
+  resetSystemData,
+} from '@/lib/mock-service'
 import { SystemSettings } from '@/lib/types'
+import { useNavigate } from 'react-router-dom'
 
 export default function Configuracoes() {
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [tariffs, setTariffs] = useState<SystemSettings['tariffs']>({
     dry20: 0,
@@ -70,6 +89,19 @@ export default function Configuracoes() {
     }
   }
 
+  const handleReset = async () => {
+    setLoading(true)
+    try {
+      await resetSystemData()
+      toast.success('Dados do sistema resetados com sucesso!')
+      navigate('/')
+    } catch (e) {
+      toast.error('Erro ao resetar dados')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-6 animate-fade-in pb-10">
       <div className="flex flex-col space-y-2">
@@ -83,7 +115,7 @@ export default function Configuracoes() {
       </div>
 
       <Tabs defaultValue="tariffs" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:w-[600px]">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 lg:w-[750px]">
           <TabsTrigger value="tariffs" className="gap-2">
             <DollarSign className="h-4 w-4" /> Tarifas
           </TabsTrigger>
@@ -95,6 +127,12 @@ export default function Configuracoes() {
           </TabsTrigger>
           <TabsTrigger value="integrations" className="gap-2">
             <Plug className="h-4 w-4" /> Integrações
+          </TabsTrigger>
+          <TabsTrigger
+            value="system"
+            className="gap-2 text-destructive data-[state=active]:text-destructive"
+          >
+            <Database className="h-4 w-4" /> Sistema
           </TabsTrigger>
         </TabsList>
 
@@ -265,7 +303,6 @@ export default function Configuracoes() {
           </Card>
         </TabsContent>
 
-        {/* Placeholder contents for other tabs */}
         <TabsContent value="notifications" className="space-y-4">
           <Card>
             <CardHeader>
@@ -280,6 +317,63 @@ export default function Configuracoes() {
               <CardTitle>Integrações</CardTitle>
             </CardHeader>
             <CardContent>Configurações de integração (Mock)</CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="system" className="space-y-4">
+          <Card className="border-destructive/20 bg-destructive/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="h-5 w-5" />
+                Zona de Perigo
+              </CardTitle>
+              <CardDescription>
+                Ações críticas que afetam todos os dados do sistema.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-background border border-destructive/20 rounded-lg">
+                <div className="space-y-1">
+                  <h4 className="text-base font-semibold text-foreground">
+                    Limpar Dados de Teste
+                  </h4>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    Esta ação excluirá permanentemente todos os containers,
+                    clientes, BLs, histórico de eventos e faturas. Use com
+                    cautela para preparar o ambiente para produção.
+                  </p>
+                </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Limpar Tudo
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Você tem certeza absoluta?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta ação não pode ser desfeita. Isso excluirá
+                        permanentemente todos os registros de teste e redefinirá
+                        o sistema para o estado inicial vazio.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleReset}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Sim, limpar tudo
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>

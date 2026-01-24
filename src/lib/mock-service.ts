@@ -202,6 +202,21 @@ export const updateSettings = async (newSettings: SystemSettings) => {
   return Promise.resolve(settings)
 }
 
+// System Reset
+export const resetSystemData = async () => {
+  clients = []
+  billsOfLading = []
+  inventory = []
+  containers = []
+  allocations = []
+  events = []
+  invoices = []
+  recentActivity = []
+  divergences = []
+  ediLogs = []
+  return Promise.resolve({ success: true })
+}
+
 // Clients
 export const getClients = async () => Promise.resolve([...clients])
 export const createClient = async (data: Omit<Client, 'id' | 'created_at'>) => {
