@@ -18,13 +18,10 @@ import {
   Calendar,
   Bell,
   Database,
-  Save,
-  Server,
-  Globe,
   Activity,
-  CheckCircle2,
-  AlertTriangle,
   Plug,
+  Globe,
+  Server,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -32,28 +29,28 @@ import { Badge } from '@/components/ui/badge'
 export default function Configuracoes() {
   const [loading, setLoading] = useState(false)
 
-  // Tariffs State
+  // Tariffs State - Reset to empty/defaults
   const [tariffs, setTariffs] = useState({
-    dry20: '2500.00',
-    dry40: '3000.00',
-    dry40hc: '3200.00',
+    dry20: '0.00',
+    dry40: '0.00',
+    dry40hc: '0.00',
     rounding: true,
   })
 
-  // Measurement State
+  // Measurement State - Reset to defaults
   const [measurement, setMeasurement] = useState({
     day: 25,
     time: '18:00',
-    auto: true,
-    notify: true,
+    auto: false,
+    notify: false,
   })
 
-  // Notifications State
+  // Notifications State - Reset
   const [notifications, setNotifications] = useState({
-    scheduled: true,
-    exit: true,
-    divergence: true,
-    invoice: true,
+    scheduled: false,
+    exit: false,
+    divergence: false,
+    invoice: false,
     export: false,
   })
 
@@ -63,10 +60,10 @@ export default function Configuracoes() {
       id: 'wms',
       name: 'WMS Integration',
       type: 'Warehouse',
-      status: 'active',
+      status: 'disconnected',
       icon: Server,
       description: 'Sincronização de estoque e movimentações físicas.',
-      lastSync: 'Há 5 min',
+      lastSync: 'Nunca',
     },
     {
       id: 'erp',
@@ -81,10 +78,10 @@ export default function Configuracoes() {
       id: 'api',
       name: 'API REST Public',
       type: 'External',
-      status: 'active',
+      status: 'disconnected',
       icon: Globe,
       description: 'Gateway para consulta de status por clientes.',
-      lastSync: 'Online',
+      lastSync: 'Offline',
     },
   ]
 

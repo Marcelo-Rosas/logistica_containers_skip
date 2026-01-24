@@ -23,7 +23,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
@@ -177,7 +176,7 @@ export default function Faturamento() {
                   simulatedInvoices.reduce(
                     (acc, curr) => acc + curr.total_amount,
                     0,
-                  ) || 15500, // Fallback purely visual if sim not run
+                  ) || 0,
                 )}
               </div>
             </div>
