@@ -24,6 +24,7 @@ import {
   ArrowRight,
   Loader2,
   AlertCircle,
+  Box,
 } from 'lucide-react'
 import { getClients, uploadBL, createBL } from '@/lib/mock-service'
 import { Client } from '@/lib/types'
