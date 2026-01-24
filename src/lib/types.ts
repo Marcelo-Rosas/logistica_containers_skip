@@ -36,16 +36,17 @@ export type Container = {
   occupancy_rate: number
   sku_count: number
 
-  // Metrics
+  // Metrics (Current State)
   total_volume_m3: number
   total_weight_kg: number // Gross Weight (BL)
-  total_net_weight_kg?: number // Net Weight (Inventory Sum)
+  total_net_weight_kg?: number // Net Weight (Sum of Inventory)
   total_quantity?: number
 
-  // Initial / Capacities for Calculation
-  initial_capacity_m3?: number
-  max_weight_capacity?: number // Payload capacity (e.g. 28000kg)
-  initial_quantity?: number
+  // Initial / Capacities for Calculation (Original State)
+  initial_capacity_m3?: number // Max Volume Capacity (for Volume Strategy)
+  max_weight_capacity?: number // Max Payload (Reference only)
+  initial_total_net_weight_kg?: number // Initial Cargo Net Weight (for Weight Strategy)
+  initial_quantity?: number // Initial Item Count (for Quantity Strategy)
 
   // Computed
   active_strategy?: BillingStrategy

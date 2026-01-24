@@ -32,6 +32,7 @@ import {
 } from 'lucide-react'
 import { NewExitEventDialog } from '@/components/NewExitEventDialog'
 import { cn } from '@/lib/utils'
+import { Progress } from '@/components/ui/progress'
 
 export default function ContainerDetails() {
   const { id } = useParams()
@@ -80,6 +81,7 @@ export default function ContainerDetails() {
   let metricLabel = ''
   let metricUnit = ''
   let metricIcon = <Cuboid className="h-4 w-4" />
+  let originalLabel = ''
 
   if (strategy === 'VOLUME') {
     currentMetric = container.total_volume_m3
@@ -87,18 +89,24 @@ export default function ContainerDetails() {
     metricLabel = 'Volume Ocupado'
     metricUnit = 'm³'
     metricIcon = <Cuboid className="h-4 w-4" />
+    originalLabel = 'Capacidade Total'
   } else if (strategy === 'WEIGHT') {
     currentMetric = container.total_net_weight_kg || 0
-    totalMetric = container.max_weight_capacity || 28500
-    metricLabel = 'Peso Líquido'
+    totalMetric =
+      container.initial_total_net_weight_kg ||
+      container.max_weight_capacity ||
+      28500
+    metricLabel = 'Peso Líquido Atual'
     metricUnit = 'kg'
     metricIcon = <Scale className="h-4 w-4" />
+    originalLabel = 'Peso Original (Packing List)'
   } else {
     currentMetric = container.total_quantity || 0
-    totalMetric = container.initial_quantity || Math.max(1, currentMetric)
+    totalMetric = container.initial_quantity || 1
     metricLabel = 'Itens Restantes'
     metricUnit = 'und'
     metricIcon = <Package className="h-4 w-4" />
+    originalLabel = 'Quantidade Original'
   }
 
   const getStrategyBadgeColor = (strat: BillingStrategy) => {
@@ -113,6 +121,11 @@ export default function ContainerDetails() {
         return ''
     }
   }
+
+  const occupancyPercentage = Math.min(
+    100,
+    Math.round((currentMetric / totalMetric) * 100),
+  )
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -136,10 +149,10 @@ export default function ContainerDetails() {
                 )}
               >
                 {strategy === 'VOLUME'
-                  ? '📦 Volume (CBM)'
+                  ? '📦 Estratégia: Volume'
                   : strategy === 'WEIGHT'
-                    ? '⚖️ Peso (KG)'
-                    : '🔢 Quantidade (Und)'}
+                    ? '⚖️ Estratégia: Peso'
+                    : '🔢 Estratégia: Qtd'}
               </Badge>
             )}
           </div>
@@ -214,14 +227,14 @@ export default function ContainerDetails() {
               {metricUnit}
             </div>
             <p className="text-xs text-muted-foreground">
-              Base de Cálculo Ativa
+              Métrica Base para Fatura
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <PackageCheck className="h-4 w-4" /> Capacidade Total
+              <PackageCheck className="h-4 w-4" /> {originalLabel}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -231,25 +244,20 @@ export default function ContainerDetails() {
               })}{' '}
               {metricUnit}
             </div>
-            <p className="text-xs text-muted-foreground">Referência Inicial</p>
+            <p className="text-xs text-muted-foreground">
+              Estado Inicial / Referência
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Taxa de Ocupação
+              Ocupação Real ({strategy})
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {container.occupancy_rate}%
-            </div>
-            <div className="w-full bg-secondary h-1.5 rounded-full mt-2">
-              <div
-                className="bg-primary h-1.5 rounded-full transition-all"
-                style={{ width: `${container.occupancy_rate}%` }}
-              ></div>
-            </div>
+            <div className="text-2xl font-bold">{occupancyPercentage}%</div>
+            <Progress value={occupancyPercentage} className="mt-2 h-2" />
           </CardContent>
         </Card>
         <Card>

@@ -381,7 +381,7 @@ export default function Faturamento() {
                                 <>
                                   <div className="flex items-center gap-1 col-span-2">
                                     <Info className="h-3 w-3" />
-                                    <span>Snapshot (25/mês):</span>
+                                    <span>Snapshot (Mensal):</span>
                                   </div>
                                   <div>
                                     Base Cálculo:{' '}
@@ -400,7 +400,8 @@ export default function Faturamento() {
                                     <div className="col-span-2 mt-1 text-emerald-600 font-medium flex items-center gap-1">
                                       <TrendingDown className="h-3 w-3" />
                                       <span>
-                                        Economia: {formatCurrency(item.savings)}
+                                        Economia (vs Full):{' '}
+                                        {formatCurrency(item.savings)}
                                       </span>
                                     </div>
                                   )}

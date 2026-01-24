@@ -81,11 +81,13 @@ let billsOfLading: BillOfLading[] = [
 ]
 
 // Mock Inventory Items with Net Weight
+// Total Items: 55. Total Net Weight: ~10,106 kg (Simulated)
 const inventoryMockData = [
-  { sku: 'LGLF-D61', name: 'Functional Trainer', qty: 15, gw: 1500, nw: 1400 },
-  { sku: 'LG-T24 Max', name: 'New Treadmill', qty: 10, gw: 1710, nw: 1600 },
-  { sku: 'PWHO-254', name: 'Spinning Bike', qty: 30, gw: 1200, nw: 1100 },
+  { sku: 'LGLF-D61', name: 'Functional Trainer', qty: 15, gw: 150, nw: 140 }, // 15 * 140 = 2100kg
+  { sku: 'LG-T24 Max', name: 'New Treadmill', qty: 10, gw: 171, nw: 160 }, // 10 * 160 = 1600kg
+  { sku: 'PWHO-254', name: 'Spinning Bike', qty: 30, gw: 60, nw: 55 }, // 30 * 55 = 1650kg
 ]
+// Total Inventory Weight: 5350kg (example)
 
 let inventory: InventoryItem[] = inventoryMockData.map((item, index) => ({
   id: `inv-${index + 1}`,
@@ -93,10 +95,10 @@ let inventory: InventoryItem[] = inventoryMockData.map((item, index) => ({
   sku: item.sku,
   name: item.name,
   quantity: item.qty,
-  unit_volume_m3: 0.5, // approx
+  unit_volume_m3: 0.8, // approx
   unit_value: 100,
   gross_weight_kg: item.gw,
-  net_weight_kg: item.nw, // Added Net Weight
+  net_weight_kg: item.nw,
   package_count: 10,
 }))
 
@@ -111,17 +113,19 @@ let containers: Container[] = [
     tipo: '40HC',
     status: 'Ativo',
     occupancy_rate: 85,
-    sku_count: 23,
+    sku_count: 3,
 
     // Metrics
-    total_volume_m3: 55,
-    total_weight_kg: 13870,
-    total_net_weight_kg: 4100, // Sum of NW
+    total_volume_m3: 55, // Current
+    total_weight_kg: 13870, // BL Gross
+    total_net_weight_kg: 5350, // Sum of Inventory Net Weight
     total_quantity: 55, // Sum of Qty
 
-    initial_capacity_m3: 67.7,
+    // Initial States
+    initial_capacity_m3: 76.4, // 40HC Capacity
     max_weight_capacity: 28500, // 40HC Payload
-    initial_quantity: 55,
+    initial_total_net_weight_kg: 5350, // Initial Cargo Weight (at entry)
+    initial_quantity: 55, // Initial Count
 
     created_at: '2026-01-20T09:00:00Z',
     cliente_id: 'cli-002',
@@ -158,12 +162,15 @@ let ediLogs: EDILog[] = []
 const getBillingStrategy = (items: InventoryItem[]): BillingStrategy => {
   if (items.length === 0) return 'QUANTITY'
 
-  // 1. Prioritize Volume
+  // 1. Prioritize Volume (All items must have volume data)
   const hasVolume = items.every((i) => (i.unit_volume_m3 || 0) > 0)
   if (hasVolume) return 'VOLUME'
 
-  // 2. Fallback to Weight (Net Weight)
-  const hasWeight = items.every((i) => (i.net_weight_kg || 0) > 0)
+  // 2. Fallback to Weight (All items must have Net/Gross weight data)
+  // Use Net Weight from Packing List as per requirements
+  const hasWeight = items.every(
+    (i) => (i.net_weight_kg || i.gross_weight_kg || 0) > 0,
+  )
   if (hasWeight) return 'WEIGHT'
 
   // 3. Fallback to Quantity
@@ -178,18 +185,25 @@ const calculateOccupancy = (
   let total = 1
 
   if (strategy === 'VOLUME') {
+    // Volume strategy is based on Space Occupancy (Container Capacity)
     current = container.total_volume_m3 || 0
     total = container.initial_capacity_m3 || 67.7
   } else if (strategy === 'WEIGHT') {
-    // Use Net Weight from Inventory, fall back to Gross if needed
-    current = container.total_net_weight_kg || container.total_weight_kg || 0
-    total = container.max_weight_capacity || 28500
+    // Weight strategy is based on Initial Cargo Weight (Packing List Sum)
+    current = container.total_net_weight_kg || 0
+    total =
+      container.initial_total_net_weight_kg ||
+      container.max_weight_capacity ||
+      1
   } else {
     // QUANTITY
+    // Quantity strategy is based on Initial Item Count
     current = container.total_quantity || 0
-    total = container.initial_quantity || 1 // Avoid div/0
+    total = container.initial_quantity || 1
   }
 
+  // Prevent division by zero and ensure 0-100 range
+  if (total <= 0) total = 1
   return Math.min(100, Math.round((current / total) * 100))
 }
 
@@ -235,7 +249,7 @@ export const getContainer = async (id: string) => {
   const container = containers.find((c) => c.id === id || c.codigo === id)
   if (!container) throw new Error('Container not found')
 
-  // Dynamically determine active strategy based on current inventory
+  // Dynamically determine active strategy based on current inventory configuration
   const containerInventory = inventory.filter(
     (i) => i.container_id === container.id,
   )
@@ -273,6 +287,10 @@ export const createContainer = async (data: any) => {
 
     initial_capacity_m3: isHC ? 76.4 : is40 ? 67.7 : 33.2,
     max_weight_capacity: is40 || isHC ? 28500 : 21000,
+    // These will be set upon Entry/Registration of Packing List
+    initial_total_net_weight_kg: 0,
+    initial_quantity: 0,
+
     base_monthly_cost: basePrice,
   }
   containers.unshift(newContainer)
@@ -308,10 +326,20 @@ export const registerEntry = async (data: any) => {
     container.cliente_nome = client.nome
     container.storage_start_date = data.data_entrada
 
-    // Reset metrics on new entry
-    container.total_quantity = 0
-    container.total_net_weight_kg = 0
-    container.initial_quantity = 0 // Will be set when items are added
+    // Simulate Initial Cargo State based on typical full load if not provided
+    // In a real app, this would come from the Packing List upload
+    const mockCargoWeight = 12000 // kg
+    const mockCargoQty = 100 // items
+    const mockCargoVolume = 30 // m3
+
+    container.total_volume_m3 = mockCargoVolume
+    container.total_quantity = mockCargoQty
+    container.total_net_weight_kg = mockCargoWeight
+
+    // Set Initial Baselines for Billing
+    container.initial_quantity = mockCargoQty
+    container.initial_total_net_weight_kg = mockCargoWeight
+    // initial_capacity_m3 is already set based on container type
 
     allocations.push({
       id: `alloc-${Date.now()}`,
@@ -394,7 +422,7 @@ export const createExitEvent = async (data: any) => {
       container.total_volume_m3 - evt.volume_m3,
     )
 
-    // Update Weight
+    // Update Weight (Use exact item weight)
     const weightToRemove = evt.weight_kg || 0
     container.total_net_weight_kg = Math.max(
       0,
@@ -536,7 +564,7 @@ export const simulateBilling = async () => {
   const currentMonth = today.getMonth()
   const measurementDay = settings.measurement.day
 
-  // Determine Next Measurement Date
+  // Determine Next Measurement Date (Configurable Day, e.g., 25th)
   let nextMeasurementDate = new Date(currentYear, currentMonth, measurementDay)
   if (today.getDate() > measurementDay) {
     nextMeasurementDate = new Date(
@@ -546,11 +574,11 @@ export const simulateBilling = async () => {
     )
   }
 
-  // Previous Measurement Date
+  // Previous Measurement Date (cycle start)
   const prevMeasurementDate = new Date(nextMeasurementDate)
   prevMeasurementDate.setMonth(prevMeasurementDate.getMonth() - 1)
 
-  // Due Date Logic: Measurement + 10 days
+  // Due Date Logic: Measurement + 10 days EXACTLY
   const dueDate = addDays(nextMeasurementDate, 10).toISOString()
 
   allocations.forEach((a) => {
@@ -591,7 +619,7 @@ export const simulateBilling = async () => {
       )
       const strategy = getBillingStrategy(containerItems)
 
-      // Logic: First Month Pro-rata vs Subsequent Volume Snapshot
+      // Logic: First Month Pro-rata vs Subsequent Snapshot
       if (entryDate > prevMeasurementDate) {
         // First Month Logic: Pro-rata based on TIME (Days Active)
         const daysActive = differenceInDays(nextMeasurementDate, entryDate)
@@ -607,7 +635,7 @@ export const simulateBilling = async () => {
           billing_strategy: strategy,
         }
       } else {
-        // Subsequent Month: Snapshot Logic (Occupancy Based)
+        // Subsequent Month: Snapshot Logic (Occupancy Based on Strategy)
         let currentMetric = 0
         let originalMetric = 1
         let unit = ''
@@ -617,15 +645,17 @@ export const simulateBilling = async () => {
           originalMetric = container.initial_capacity_m3 || 67.7
           unit = 'm³'
         } else if (strategy === 'WEIGHT') {
-          // Use Net Weight
+          // Use Net Weight from Packing List Sum
           currentMetric = container.total_net_weight_kg || 0
-          originalMetric = container.max_weight_capacity || 28500
+          originalMetric =
+            container.initial_total_net_weight_kg ||
+            container.max_weight_capacity ||
+            1
           unit = 'kg'
         } else {
           // QUANTITY
           currentMetric = container.total_quantity || 0
-          originalMetric =
-            container.initial_quantity || Math.max(1, currentMetric)
+          originalMetric = container.initial_quantity || 1
           unit = 'und'
         }
 
@@ -640,7 +670,7 @@ export const simulateBilling = async () => {
           metric_used: Number(currentMetric.toFixed(2)),
           metric_total: Number(originalMetric.toFixed(2)),
           metric_unit: unit,
-          occupancy_percentage: Number((ratio * 100).toFixed(1)),
+          occupancy_percentage: Number((ratio * 100).toFixed(2)),
           base_cost: basePrice,
           savings: basePrice - amount,
           billing_strategy: strategy,
