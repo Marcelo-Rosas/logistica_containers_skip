@@ -31,6 +31,8 @@ import {
   LogOut,
   Activity,
   Download,
+  Scale,
+  Cuboid,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useNavigate } from 'react-router-dom'
@@ -98,6 +100,13 @@ export function ContainerCard({
   const handleCardClick = () => {
     navigate(`/containers/${container.id}`)
   }
+
+  // Use active strategy if available, otherwise guess based on fields
+  const strategy = container.active_strategy || 'VOLUME'
+
+  // Note: active_strategy is computed in getContainer detail,
+  // but might be missing in list view if not populated.
+  // However, occupancy_rate is main visual indicator.
 
   return (
     <Card
@@ -187,7 +196,9 @@ export function ContainerCard({
         <div className="space-y-4">
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs mb-1">
-              <span className="text-muted-foreground">Ocupação</span>
+              <span className="text-muted-foreground">
+                Ocupação ({strategy})
+              </span>
               <span className="font-medium">{container.occupancy_rate}%</span>
             </div>
             <Progress
@@ -206,21 +217,21 @@ export function ContainerCard({
               </span>
             </div>
             <div className="flex flex-col items-center justify-center p-2 bg-slate-50 rounded-md border text-center">
-              <Ruler className="h-4 w-4 text-muted-foreground mb-1" />
+              <Cuboid className="h-4 w-4 text-muted-foreground mb-1" />
               <span className="text-sm font-bold">
-                {container.total_volume_m3}
+                {Number(container.total_volume_m3).toFixed(1)}
               </span>
               <span className="text-[10px] text-muted-foreground uppercase">
                 m³
               </span>
             </div>
             <div className="flex flex-col items-center justify-center p-2 bg-slate-50 rounded-md border text-center">
-              <Weight className="h-4 w-4 text-muted-foreground mb-1" />
+              <Scale className="h-4 w-4 text-muted-foreground mb-1" />
               <span className="text-sm font-bold">
                 {(container.total_weight_kg / 1000).toFixed(1)}
               </span>
               <span className="text-[10px] text-muted-foreground uppercase">
-                Ton
+                Ton (B)
               </span>
             </div>
           </div>

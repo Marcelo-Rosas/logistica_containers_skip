@@ -39,16 +39,14 @@ import {
   AlertTriangle,
   Info,
   TrendingDown,
+  Scale,
+  Cuboid,
+  Package,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useSearchParams } from 'react-router-dom'
 import { NextMeasurementCard } from '@/components/NextMeasurementCard'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 
 export default function Faturamento() {
   const [invoices, setInvoices] = useState<Invoice[]>([])
@@ -284,7 +282,7 @@ export default function Faturamento() {
               Simulação de Faturamento
             </DialogTitle>
             <DialogDescription>
-              Prévia dos custos calculados (Pro-rata ou Volume) para o próximo
+              Prévia dos custos calculados (Pro-rata ou Snapshot) para o próximo
               dia 25.
             </DialogDescription>
           </DialogHeader>
@@ -294,7 +292,7 @@ export default function Faturamento() {
               <div className="flex flex-col items-center justify-center py-12 space-y-4">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="text-sm text-muted-foreground">
-                  Calculando snapshots de volume e pro-rata...
+                  Identificando estratégia de cobrança (Vol/Peso/Qtd)...
                 </p>
               </div>
             ) : simulatedInvoices.length === 0 ? (
@@ -333,22 +331,41 @@ export default function Faturamento() {
                             key={item.id}
                             className="text-xs border-b border-dashed pb-3 last:border-0 last:pb-0 bg-white p-3 rounded-md shadow-sm"
                           >
-                            <div className="flex justify-between items-start mb-1">
-                              <span className="font-medium text-slate-700">
-                                {item.description}
-                              </span>
-                              <span className="font-semibold text-slate-900">
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex flex-col gap-1">
+                                <span className="font-medium text-slate-700 text-sm">
+                                  {item.description}
+                                </span>
+                                {item.billing_strategy && (
+                                  <Badge
+                                    variant="outline"
+                                    className="w-fit text-[10px] h-5 px-1.5"
+                                  >
+                                    {item.billing_strategy === 'VOLUME' && (
+                                      <Cuboid className="h-3 w-3 mr-1" />
+                                    )}
+                                    {item.billing_strategy === 'WEIGHT' && (
+                                      <Scale className="h-3 w-3 mr-1" />
+                                    )}
+                                    {item.billing_strategy === 'QUANTITY' && (
+                                      <Package className="h-3 w-3 mr-1" />
+                                    )}
+                                    {item.billing_strategy}
+                                  </Badge>
+                                )}
+                              </div>
+                              <span className="font-semibold text-slate-900 text-sm">
                                 {formatCurrency(item.amount)}
                               </span>
                             </div>
 
                             {/* Details based on calculation method */}
-                            <div className="grid grid-cols-2 gap-2 mt-2 text-slate-500">
+                            <div className="grid grid-cols-2 gap-2 mt-2 text-slate-500 bg-slate-50 p-2 rounded">
                               {item.calculation_method === 'pro_rata' && (
                                 <>
                                   <div className="flex items-center gap-1">
                                     <Info className="h-3 w-3" />
-                                    <span>Método: Pro-rata Inicial</span>
+                                    <span>Método: Pro-rata (Dias)</span>
                                   </div>
                                   <div>
                                     Dias Cobrados:{' '}
@@ -362,24 +379,15 @@ export default function Faturamento() {
                               {item.calculation_method ===
                                 'volume_snapshot' && (
                                 <>
-                                  <div className="flex items-center gap-1">
+                                  <div className="flex items-center gap-1 col-span-2">
                                     <Info className="h-3 w-3" />
-                                    <span>Método: Volume (Snapshot)</span>
+                                    <span>Snapshot (25/mês):</span>
                                   </div>
                                   <div>
-                                    Ref. Medição:{' '}
+                                    Base Cálculo:{' '}
                                     <span className="text-slate-900 font-medium">
-                                      {item.snapshot_date
-                                        ? new Date(
-                                            item.snapshot_date,
-                                          ).toLocaleDateString('pt-BR')
-                                        : '-'}
-                                    </span>
-                                  </div>
-                                  <div>
-                                    Volume Utilizado:{' '}
-                                    <span className="text-slate-900 font-medium">
-                                      {item.used_volume_m3} m³
+                                      {item.metric_used} / {item.metric_total}{' '}
+                                      {item.metric_unit}
                                     </span>
                                   </div>
                                   <div>
@@ -389,12 +397,10 @@ export default function Faturamento() {
                                     </span>
                                   </div>
                                   {item.savings && item.savings > 0 && (
-                                    <div className="col-span-2 mt-1 text-emerald-600 bg-emerald-50 p-1.5 rounded flex items-center gap-1">
+                                    <div className="col-span-2 mt-1 text-emerald-600 font-medium flex items-center gap-1">
                                       <TrendingDown className="h-3 w-3" />
                                       <span>
-                                        Economia gerada:{' '}
-                                        {formatCurrency(item.savings)} vs Custo
-                                        Base
+                                        Economia: {formatCurrency(item.savings)}
                                       </span>
                                     </div>
                                   )}

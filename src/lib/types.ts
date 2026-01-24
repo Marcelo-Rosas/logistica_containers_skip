@@ -20,12 +20,7 @@ export type ContainerStatus =
   | 'Ocupado'
   | 'Manutenção'
 
-export type ContainerTypeDef = {
-  id: string
-  name: string
-  volume_m3: number
-  price: number
-}
+export type BillingStrategy = 'VOLUME' | 'WEIGHT' | 'QUANTITY'
 
 export type Container = {
   id: string
@@ -40,13 +35,25 @@ export type Container = {
   status: ContainerStatus
   occupancy_rate: number
   sku_count: number
+
+  // Metrics
   total_volume_m3: number
-  total_weight_kg: number
+  total_weight_kg: number // Gross Weight (BL)
+  total_net_weight_kg?: number // Net Weight (Inventory Sum)
+  total_quantity?: number
+
+  // Initial / Capacities for Calculation
+  initial_capacity_m3?: number
+  max_weight_capacity?: number // Payload capacity (e.g. 28000kg)
+  initial_quantity?: number
+
+  // Computed
+  active_strategy?: BillingStrategy
+
   created_at: string
   arrival_date?: string
   storage_start_date?: string
   seal?: string
-  initial_capacity_m3?: number
   base_monthly_cost?: number
 }
 
@@ -80,10 +87,17 @@ export type InvoiceItem = {
   type: 'storage' | 'exit_fee' | 'handling' | 'other'
   reference_id?: string
   calculation_method?: 'pro_rata' | 'volume_snapshot'
+  billing_strategy?: BillingStrategy
+
+  // Meta for display
   days_pro_rated?: number
   snapshot_date?: string
-  used_volume_m3?: number
+
+  metric_used?: number
+  metric_total?: number
+  metric_unit?: string
   occupancy_percentage?: number
+
   base_cost?: number
   savings?: number
 }
@@ -144,6 +158,7 @@ export type LogisticsEvent = {
   sku: string
   quantity: number
   volume_m3: number
+  weight_kg?: number
   doc_number: string
   destination: string
   responsible: string

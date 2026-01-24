@@ -13,6 +13,7 @@ import {
   EDILog,
   InvoiceItem,
   SystemSettings,
+  BillingStrategy,
 } from './types'
 import { addDays, differenceInDays } from 'date-fns'
 
@@ -79,6 +80,26 @@ let billsOfLading: BillOfLading[] = [
   },
 ]
 
+// Mock Inventory Items with Net Weight
+const inventoryMockData = [
+  { sku: 'LGLF-D61', name: 'Functional Trainer', qty: 15, gw: 1500, nw: 1400 },
+  { sku: 'LG-T24 Max', name: 'New Treadmill', qty: 10, gw: 1710, nw: 1600 },
+  { sku: 'PWHO-254', name: 'Spinning Bike', qty: 30, gw: 1200, nw: 1100 },
+]
+
+let inventory: InventoryItem[] = inventoryMockData.map((item, index) => ({
+  id: `inv-${index + 1}`,
+  container_id: 'cont-001',
+  sku: item.sku,
+  name: item.name,
+  quantity: item.qty,
+  unit_volume_m3: 0.5, // approx
+  unit_value: 100,
+  gross_weight_kg: item.gw,
+  net_weight_kg: item.nw, // Added Net Weight
+  package_count: 10,
+}))
+
 let containers: Container[] = [
   {
     id: 'cont-001',
@@ -91,36 +112,25 @@ let containers: Container[] = [
     status: 'Ativo',
     occupancy_rate: 85,
     sku_count: 23,
+
+    // Metrics
     total_volume_m3: 55,
     total_weight_kg: 13870,
+    total_net_weight_kg: 4100, // Sum of NW
+    total_quantity: 55, // Sum of Qty
+
+    initial_capacity_m3: 67.7,
+    max_weight_capacity: 28500, // 40HC Payload
+    initial_quantity: 55,
+
     created_at: '2026-01-20T09:00:00Z',
     cliente_id: 'cli-002',
     cliente_nome: 'Rodrigues & Marinho Fitness Ltda',
     arrival_date: '2026-01-25',
     storage_start_date: '2026-01-26',
-    initial_capacity_m3: 67.7,
     base_monthly_cost: 3200.0,
   },
 ]
-
-// Mock Inventory Items
-const inventoryMockData = [
-  { sku: 'LGLF-D61', name: 'Functional Trainer', qty: 15, gw: 1500 },
-  { sku: 'LG-T24 Max', name: 'New Treadmill', qty: 10, gw: 1710 },
-  { sku: 'PWHO-254', name: 'Spinning Bike', qty: 30, gw: 1200 },
-]
-
-let inventory: InventoryItem[] = inventoryMockData.map((item, index) => ({
-  id: `inv-${index + 1}`,
-  container_id: 'cont-001',
-  sku: item.sku,
-  name: item.name,
-  quantity: item.qty,
-  unit_volume_m3: 0.5, // approx
-  unit_value: 100,
-  gross_weight_kg: item.gw,
-  package_count: 10,
-}))
 
 let allocations: Allocation[] = [
   {
@@ -142,6 +152,46 @@ let invoices: Invoice[] = []
 let recentActivity: ActivityLog[] = []
 let divergences: Divergence[] = []
 let ediLogs: EDILog[] = []
+
+// --- HELPERS ---
+
+const getBillingStrategy = (items: InventoryItem[]): BillingStrategy => {
+  if (items.length === 0) return 'QUANTITY'
+
+  // 1. Prioritize Volume
+  const hasVolume = items.every((i) => (i.unit_volume_m3 || 0) > 0)
+  if (hasVolume) return 'VOLUME'
+
+  // 2. Fallback to Weight (Net Weight)
+  const hasWeight = items.every((i) => (i.net_weight_kg || 0) > 0)
+  if (hasWeight) return 'WEIGHT'
+
+  // 3. Fallback to Quantity
+  return 'QUANTITY'
+}
+
+const calculateOccupancy = (
+  container: Container,
+  strategy: BillingStrategy,
+) => {
+  let current = 0
+  let total = 1
+
+  if (strategy === 'VOLUME') {
+    current = container.total_volume_m3 || 0
+    total = container.initial_capacity_m3 || 67.7
+  } else if (strategy === 'WEIGHT') {
+    // Use Net Weight from Inventory, fall back to Gross if needed
+    current = container.total_net_weight_kg || container.total_weight_kg || 0
+    total = container.max_weight_capacity || 28500
+  } else {
+    // QUANTITY
+    current = container.total_quantity || 0
+    total = container.initial_quantity || 1 // Avoid div/0
+  }
+
+  return Math.min(100, Math.round((current / total) * 100))
+}
 
 // --- API FUNCTIONS ---
 
@@ -169,6 +219,19 @@ export const getContainers = async () => Promise.resolve([...containers])
 export const getContainer = async (id: string) => {
   const container = containers.find((c) => c.id === id || c.codigo === id)
   if (!container) throw new Error('Container not found')
+
+  // Dynamically determine active strategy based on current inventory
+  const containerInventory = inventory.filter(
+    (i) => i.container_id === container.id,
+  )
+  container.active_strategy = getBillingStrategy(containerInventory)
+
+  // Update occupancy rate based on that strategy
+  container.occupancy_rate = calculateOccupancy(
+    container,
+    container.active_strategy,
+  )
+
   return Promise.resolve(container)
 }
 
@@ -190,7 +253,11 @@ export const createContainer = async (data: any) => {
     sku_count: 0,
     total_volume_m3: 0,
     total_weight_kg: 0,
+    total_net_weight_kg: 0,
+    total_quantity: 0,
+
     initial_capacity_m3: isHC ? 76.4 : is40 ? 67.7 : 33.2,
+    max_weight_capacity: is40 || isHC ? 28500 : 21000,
     base_monthly_cost: basePrice,
   }
   containers.unshift(newContainer)
@@ -225,6 +292,11 @@ export const registerEntry = async (data: any) => {
     container.cliente_id = client.id
     container.cliente_nome = client.nome
     container.storage_start_date = data.data_entrada
+
+    // Reset metrics on new entry
+    container.total_quantity = 0
+    container.total_net_weight_kg = 0
+    container.initial_quantity = 0 // Will be set when items are added
 
     allocations.push({
       id: `alloc-${Date.now()}`,
@@ -273,37 +345,62 @@ export const registerExit = async (id: string, date: Date) => {
 }
 
 export const createExitEvent = async (data: any) => {
-  const evt = {
-    ...data,
+  const item = inventory.find((i) => i.id === data.inventory_id)
+  if (!item) throw new Error('Item not found')
+
+  const evt: LogisticsEvent = {
     id: `evt-${Date.now()}`,
     type: 'exit',
-    volume_m3: 0,
-    value: 0,
+    container_id: data.container_id,
+    container_code: '',
+    sku: item.sku,
+    quantity: data.quantity,
+    volume_m3: item.unit_volume_m3 * data.quantity,
+    weight_kg:
+      (item.net_weight_kg || item.gross_weight_kg || 0) * data.quantity,
+    value: item.unit_value * data.quantity,
     timestamp: new Date().toISOString(),
-  } as LogisticsEvent
+    doc_number: data.doc_number,
+    destination: data.destination,
+    responsible: data.responsible,
+  }
 
-  const item = inventory.find((i) => i.id === data.inventory_id)
-  if (item) {
-    item.quantity -= data.quantity
-    evt.sku = item.sku // ensure sku is passed
-    evt.volume_m3 = item.unit_volume_m3 * data.quantity
-    evt.value = item.unit_value * data.quantity
+  // Update Inventory
+  item.quantity -= data.quantity
 
-    // Update container metrics
-    const container = containers.find((c) => c.id === data.container_id)
-    if (container) {
-      // Direct post-movement state update as per requirement
-      container.total_volume_m3 = Math.max(
-        0,
-        container.total_volume_m3 - evt.volume_m3,
-      )
-      if (container.initial_capacity_m3) {
-        container.occupancy_rate = Math.round(
-          (container.total_volume_m3 / container.initial_capacity_m3) * 100,
-        )
-      }
-      evt.container_code = container.codigo // Ensure code is present
-    }
+  // Update Container Metrics
+  const container = containers.find((c) => c.id === data.container_id)
+  if (container) {
+    evt.container_code = container.codigo
+
+    // Update Volume
+    container.total_volume_m3 = Math.max(
+      0,
+      container.total_volume_m3 - evt.volume_m3,
+    )
+
+    // Update Weight
+    const weightToRemove = evt.weight_kg || 0
+    container.total_net_weight_kg = Math.max(
+      0,
+      (container.total_net_weight_kg || 0) - weightToRemove,
+    )
+
+    // Update Quantity
+    container.total_quantity = Math.max(
+      0,
+      (container.total_quantity || 0) - evt.quantity,
+    )
+
+    // Recalculate Occupancy
+    const containerInventory = inventory.filter(
+      (i) => i.container_id === container.id,
+    )
+    container.active_strategy = getBillingStrategy(containerInventory)
+    container.occupancy_rate = calculateOccupancy(
+      container,
+      container.active_strategy,
+    )
   }
 
   // Persistent Logging
@@ -466,7 +563,6 @@ export const simulateBilling = async () => {
       if (container.tipo?.includes('40')) basePrice = settings.tariffs.dry40
       if (container.tipo?.includes('HC')) basePrice = settings.tariffs.dry40hc
 
-      const capacity = container.initial_capacity_m3 || 67.7
       const entryDate = new Date(alloc.data_entrada)
 
       let amount = 0
@@ -474,36 +570,65 @@ export const simulateBilling = async () => {
       let calculationMethod: 'pro_rata' | 'volume_snapshot'
       let meta: Partial<InvoiceItem> = {}
 
+      // Identify Strategy
+      const containerItems = inventory.filter(
+        (i) => i.container_id === container.id,
+      )
+      const strategy = getBillingStrategy(containerItems)
+
       // Logic: First Month Pro-rata vs Subsequent Volume Snapshot
       if (entryDate > prevMeasurementDate) {
-        // First Month Logic: Pro-rata
+        // First Month Logic: Pro-rata based on TIME (Days Active)
         const daysActive = differenceInDays(nextMeasurementDate, entryDate)
         const daysToBill = Math.max(1, daysActive)
 
         amount = (daysToBill / 30) * basePrice
-        description = `Armazenagem (Pro-rata) - ${container.codigo}`
+        description = `Armazenagem (${strategy}) - Pro-rata Inicial - ${container.codigo}`
         calculationMethod = 'pro_rata'
 
         meta = {
           days_pro_rated: daysToBill,
           base_cost: basePrice,
+          billing_strategy: strategy,
         }
       } else {
-        // Subsequent Month: Volume Snapshot Logic
-        // Formula: (Remaining Volume / Original Volume) * Base Container Value
-        const currentVolume = container.total_volume_m3
-        const ratio = Math.min(1, currentVolume / capacity)
+        // Subsequent Month: Snapshot Logic (Occupancy Based)
+        let currentMetric = 0
+        let originalMetric = 1
+        let unit = ''
+
+        if (strategy === 'VOLUME') {
+          currentMetric = container.total_volume_m3
+          originalMetric = container.initial_capacity_m3 || 67.7
+          unit = 'm³'
+        } else if (strategy === 'WEIGHT') {
+          // Use Net Weight
+          currentMetric = container.total_net_weight_kg || 0
+          originalMetric = container.max_weight_capacity || 28500
+          unit = 'kg'
+        } else {
+          // QUANTITY
+          currentMetric = container.total_quantity || 0
+          originalMetric =
+            container.initial_quantity || Math.max(1, currentMetric)
+          unit = 'und'
+        }
+
+        const ratio = Math.min(1, currentMetric / originalMetric)
         amount = ratio * basePrice
 
-        description = `Armazenagem (Volume) - ${container.codigo}`
+        description = `Armazenagem (${strategy}) - Mensal - ${container.codigo}`
         calculationMethod = 'volume_snapshot'
 
         meta = {
           snapshot_date: nextMeasurementDate.toISOString(),
-          used_volume_m3: Number(currentVolume.toFixed(2)),
+          metric_used: Number(currentMetric.toFixed(2)),
+          metric_total: Number(originalMetric.toFixed(2)),
+          metric_unit: unit,
           occupancy_percentage: Number((ratio * 100).toFixed(1)),
           base_cost: basePrice,
           savings: basePrice - amount,
+          billing_strategy: strategy,
         }
       }
 

@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getContainer, getInventory, getEvents } from '@/lib/mock-service'
-import { Container, InventoryItem, LogisticsEvent } from '@/lib/types'
+import {
+  Container,
+  InventoryItem,
+  LogisticsEvent,
+  BillingStrategy,
+} from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -22,8 +27,11 @@ import {
   ShieldCheck,
   PackageCheck,
   Cuboid,
+  Scale,
+  Package,
 } from 'lucide-react'
 import { NewExitEventDialog } from '@/components/NewExitEventDialog'
+import { cn } from '@/lib/utils'
 
 export default function ContainerDetails() {
   const { id } = useParams()
@@ -64,10 +72,47 @@ export default function ContainerDetails() {
   if (loading) return <div className="p-8">Carregando detalhes...</div>
   if (!container) return <div className="p-8">Container não encontrado.</div>
 
-  // Calculate remaining volume info
-  const capacity = container.initial_capacity_m3 || 67.7
-  const usedVolume = container.total_volume_m3
-  const availableVolume = Math.max(0, capacity - usedVolume)
+  // Metrics Logic based on Active Strategy
+  const strategy = container.active_strategy || 'VOLUME'
+
+  let currentMetric = 0
+  let totalMetric = 1
+  let metricLabel = ''
+  let metricUnit = ''
+  let metricIcon = <Cuboid className="h-4 w-4" />
+
+  if (strategy === 'VOLUME') {
+    currentMetric = container.total_volume_m3
+    totalMetric = container.initial_capacity_m3 || 67.7
+    metricLabel = 'Volume Ocupado'
+    metricUnit = 'm³'
+    metricIcon = <Cuboid className="h-4 w-4" />
+  } else if (strategy === 'WEIGHT') {
+    currentMetric = container.total_net_weight_kg || 0
+    totalMetric = container.max_weight_capacity || 28500
+    metricLabel = 'Peso Líquido'
+    metricUnit = 'kg'
+    metricIcon = <Scale className="h-4 w-4" />
+  } else {
+    currentMetric = container.total_quantity || 0
+    totalMetric = container.initial_quantity || Math.max(1, currentMetric)
+    metricLabel = 'Itens Restantes'
+    metricUnit = 'und'
+    metricIcon = <Package className="h-4 w-4" />
+  }
+
+  const getStrategyBadgeColor = (strat: BillingStrategy) => {
+    switch (strat) {
+      case 'VOLUME':
+        return 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+      case 'WEIGHT':
+        return 'bg-purple-100 text-purple-800 hover:bg-purple-200'
+      case 'QUANTITY':
+        return 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+      default:
+        return ''
+    }
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -76,13 +121,29 @@ export default function ContainerDetails() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1">
-          <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            {container.codigo}
+          <div className="flex items-center gap-2">
+            <h2 className="text-3xl font-bold tracking-tight">
+              {container.codigo}
+            </h2>
             <Badge variant="outline" className="text-lg px-2">
               {container.status}
             </Badge>
-          </h2>
-          <p className="text-muted-foreground">
+            {container.active_strategy && (
+              <Badge
+                className={cn(
+                  'ml-2',
+                  getStrategyBadgeColor(container.active_strategy),
+                )}
+              >
+                {strategy === 'VOLUME'
+                  ? '📦 Volume (CBM)'
+                  : strategy === 'WEIGHT'
+                    ? '⚖️ Peso (KG)'
+                    : '🔢 Quantidade (Und)'}
+              </Badge>
+            )}
+          </div>
+          <p className="text-muted-foreground mt-1">
             {container.tipo} • {container.cliente_nome || 'Sem Cliente'}
           </p>
         </div>
@@ -142,16 +203,18 @@ export default function ContainerDetails() {
         <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Cuboid className="h-4 w-4" /> Volume Ocupado
+              {metricIcon} {metricLabel}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {usedVolume.toLocaleString('pt-BR', { maximumFractionDigits: 3 })}{' '}
-              m³
+              {currentMetric.toLocaleString('pt-BR', {
+                maximumFractionDigits: 3,
+              })}{' '}
+              {metricUnit}
             </div>
             <p className="text-xs text-muted-foreground">
-              Atualizado pós-movimentação
+              Base de Cálculo Ativa
             </p>
           </CardContent>
         </Card>
@@ -162,13 +225,19 @@ export default function ContainerDetails() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{capacity} m³</div>
+            <div className="text-2xl font-bold">
+              {totalMetric.toLocaleString('pt-BR', {
+                maximumFractionDigits: 2,
+              })}{' '}
+              {metricUnit}
+            </div>
+            <p className="text-xs text-muted-foreground">Referência Inicial</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Ocupação
+              Taxa de Ocupação
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -198,12 +267,12 @@ export default function ContainerDetails() {
       <Tabs defaultValue="inventory" className="w-full">
         <TabsList>
           <TabsTrigger value="inventory">Inventário Atual</TabsTrigger>
-          <TabsTrigger value="history">Histórico de Eventos</TabsTrigger>
+          <TabsTrigger value="history">Histórico de Movimentações</TabsTrigger>
         </TabsList>
         <TabsContent value="inventory" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Detailed Packing List</CardTitle>
+              <CardTitle>Packing List Detalhado</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
@@ -213,10 +282,8 @@ export default function ContainerDetails() {
                     <TableHead>Descrição</TableHead>
                     <TableHead>Embalagem</TableHead>
                     <TableHead className="text-right">Qtd (Pcs)</TableHead>
-                    <TableHead className="text-right">Volumes (Pkg)</TableHead>
-                    <TableHead className="text-right">
-                      Peso Bruto (kg)
-                    </TableHead>
+                    <TableHead className="text-right">Unit Vol (m³)</TableHead>
+                    <TableHead className="text-right">Peso Líq (kg)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -234,10 +301,12 @@ export default function ContainerDetails() {
                           {item.quantity}
                         </TableCell>
                         <TableCell className="text-right">
-                          {item.package_count || '-'}
+                          {item.unit_volume_m3
+                            ? item.unit_volume_m3.toFixed(3)
+                            : '-'}
                         </TableCell>
                         <TableCell className="text-right">
-                          {item.gross_weight_kg?.toLocaleString() || '-'}
+                          {item.net_weight_kg?.toLocaleString() || '-'}
                         </TableCell>
                       </TableRow>
                     ))
@@ -270,6 +339,7 @@ export default function ContainerDetails() {
                     <TableHead>SKU</TableHead>
                     <TableHead>Qtd</TableHead>
                     <TableHead>Vol. (m³)</TableHead>
+                    <TableHead>Peso (kg)</TableHead>
                     <TableHead>Doc</TableHead>
                     <TableHead>Resp.</TableHead>
                   </TableRow>
@@ -297,7 +367,10 @@ export default function ContainerDetails() {
                         </TableCell>
                         <TableCell>{event.sku}</TableCell>
                         <TableCell>{event.quantity}</TableCell>
-                        <TableCell>{event.volume_m3.toFixed(3)}</TableCell>
+                        <TableCell>{event.volume_m3?.toFixed(3)}</TableCell>
+                        <TableCell>
+                          {event.weight_kg?.toLocaleString()}
+                        </TableCell>
                         <TableCell>{event.doc_number}</TableCell>
                         <TableCell>{event.responsible}</TableCell>
                       </TableRow>
@@ -305,7 +378,7 @@ export default function ContainerDetails() {
                   ) : (
                     <TableRow>
                       <TableCell
-                        colSpan={7}
+                        colSpan={8}
                         className="text-center h-24 text-muted-foreground"
                       >
                         Nenhum evento registrado.
