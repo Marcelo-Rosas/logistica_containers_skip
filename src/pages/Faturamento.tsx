@@ -37,10 +37,18 @@ import {
   Loader2,
   CheckCircle,
   AlertTriangle,
+  Info,
+  TrendingDown,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useSearchParams } from 'react-router-dom'
 import { NextMeasurementCard } from '@/components/NextMeasurementCard'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 export default function Faturamento() {
   const [invoices, setInvoices] = useState<Invoice[]>([])
@@ -276,8 +284,8 @@ export default function Faturamento() {
               Simulação de Faturamento
             </DialogTitle>
             <DialogDescription>
-              Prévia dos custos acumulados até o momento para o próximo
-              fechamento (Dia 25).
+              Prévia dos custos calculados (Pro-rata ou Volume) para o próximo
+              dia 25.
             </DialogDescription>
           </DialogHeader>
 
@@ -286,7 +294,7 @@ export default function Faturamento() {
               <div className="flex flex-col items-center justify-center py-12 space-y-4">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="text-sm text-muted-foreground">
-                  Calculando custos de armazenagem e saídas...
+                  Calculando snapshots de volume e pro-rata...
                 </p>
               </div>
             ) : simulatedInvoices.length === 0 ? (
@@ -298,8 +306,8 @@ export default function Faturamento() {
                 </p>
               </div>
             ) : (
-              <ScrollArea className="h-[300px] pr-4">
-                <div className="space-y-4">
+              <ScrollArea className="h-[400px] pr-4">
+                <div className="space-y-6">
                   {simulatedInvoices.map((inv) => (
                     <div
                       key={inv.id}
@@ -309,18 +317,90 @@ export default function Faturamento() {
                         <h4 className="font-semibold text-sm">
                           {inv.client_name}
                         </h4>
-                        <span className="font-bold text-primary">
-                          {formatCurrency(inv.total_amount)}
-                        </span>
+                        <div className="text-right">
+                          <span className="block font-bold text-primary">
+                            {formatCurrency(inv.total_amount)}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            Vencimento:{' '}
+                            {new Date(inv.due_date).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {inv.items.map((item) => (
                           <div
                             key={item.id}
-                            className="flex justify-between text-xs text-muted-foreground border-b border-dashed pb-1 last:border-0"
+                            className="text-xs border-b border-dashed pb-3 last:border-0 last:pb-0 bg-white p-3 rounded-md shadow-sm"
                           >
-                            <span>{item.description}</span>
-                            <span>{formatCurrency(item.amount)}</span>
+                            <div className="flex justify-between items-start mb-1">
+                              <span className="font-medium text-slate-700">
+                                {item.description}
+                              </span>
+                              <span className="font-semibold text-slate-900">
+                                {formatCurrency(item.amount)}
+                              </span>
+                            </div>
+
+                            {/* Details based on calculation method */}
+                            <div className="grid grid-cols-2 gap-2 mt-2 text-slate-500">
+                              {item.calculation_method === 'pro_rata' && (
+                                <>
+                                  <div className="flex items-center gap-1">
+                                    <Info className="h-3 w-3" />
+                                    <span>Método: Pro-rata Inicial</span>
+                                  </div>
+                                  <div>
+                                    Dias Cobrados:{' '}
+                                    <span className="text-slate-900 font-medium">
+                                      {item.days_pro_rated}/30
+                                    </span>
+                                  </div>
+                                </>
+                              )}
+
+                              {item.calculation_method ===
+                                'volume_snapshot' && (
+                                <>
+                                  <div className="flex items-center gap-1">
+                                    <Info className="h-3 w-3" />
+                                    <span>Método: Volume (Snapshot)</span>
+                                  </div>
+                                  <div>
+                                    Ref. Medição:{' '}
+                                    <span className="text-slate-900 font-medium">
+                                      {item.snapshot_date
+                                        ? new Date(
+                                            item.snapshot_date,
+                                          ).toLocaleDateString('pt-BR')
+                                        : '-'}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    Volume Utilizado:{' '}
+                                    <span className="text-slate-900 font-medium">
+                                      {item.used_volume_m3} m³
+                                    </span>
+                                  </div>
+                                  <div>
+                                    Ocupação:{' '}
+                                    <span className="text-slate-900 font-medium">
+                                      {item.occupancy_percentage}%
+                                    </span>
+                                  </div>
+                                  {item.savings && item.savings > 0 && (
+                                    <div className="col-span-2 mt-1 text-emerald-600 bg-emerald-50 p-1.5 rounded flex items-center gap-1">
+                                      <TrendingDown className="h-3 w-3" />
+                                      <span>
+                                        Economia gerada:{' '}
+                                        {formatCurrency(item.savings)} vs Custo
+                                        Base
+                                      </span>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>

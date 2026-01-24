@@ -40,13 +40,15 @@ export type Container = {
   status: ContainerStatus
   occupancy_rate: number // 0-100
   sku_count: number
-  total_volume_m3: number
+  total_volume_m3: number // Current volume occupied by cargo
   total_weight_kg: number
   created_at: string
   arrival_date?: string
   storage_start_date?: string
-  base_cost_brl?: number // Base storage cost
   seal?: string // New field
+  // New billing fields
+  initial_capacity_m3?: number // Max capacity for billing (e.g. 76 for 40HC)
+  base_monthly_cost?: number // Base price (e.g. 3200)
 }
 
 export type Allocation = {
@@ -58,7 +60,7 @@ export type Allocation = {
   data_entrada: string
   data_saida?: string
   packing_list_url?: string
-  custo_mensal: number
+  custo_mensal: number // Keeps legacy or override
   created_at: string
   status: 'Ativo' | 'Finalizado'
 }
@@ -78,6 +80,14 @@ export type InvoiceItem = {
   amount: number
   type: 'storage' | 'exit_fee' | 'handling' | 'other'
   reference_id?: string // container_id or event_id
+  // New billing details
+  calculation_method?: 'pro_rata' | 'volume_snapshot'
+  days_pro_rated?: number
+  snapshot_date?: string
+  used_volume_m3?: number
+  occupancy_percentage?: number
+  base_cost?: number
+  savings?: number
 }
 
 export type Invoice = {
