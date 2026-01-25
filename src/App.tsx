@@ -1,4 +1,4 @@
-/* Main App Component - Updated with Routes for BL Management and Divergences and Auth Provider */
+/* Main App Component - Updated with Diagnostics Route */
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
@@ -7,7 +7,6 @@ import Index from './pages/Index'
 import Clientes from './pages/Clientes'
 import Containers from './pages/Containers'
 import ContainerDetails from './pages/ContainerDetails'
-// Alocacoes page removed
 import Events from './pages/Events'
 import Relatorios from './pages/Relatorios'
 import Configuracoes from './pages/Configuracoes'
@@ -22,6 +21,7 @@ import BLManagement from './pages/BLManagement'
 import BLRegister from './pages/BLRegister'
 import BLDetails from './pages/BLDetails'
 import Divergences from './pages/Divergences'
+import Diagnostics from './pages/Diagnostics'
 
 // Auth
 import { AuthProvider } from './hooks/use-auth'
@@ -52,11 +52,14 @@ const App = () => (
               <Route path="/clientes" element={<Clientes />} />
               <Route path="/containers" element={<Containers />} />
               <Route path="/containers/:id" element={<ContainerDetails />} />
-              {/* Route path="/alocacoes" removed */}
+
               <Route path="/eventos" element={<Events />} />
               <Route path="/faturamento" element={<Faturamento />} />
               <Route path="/relatorios" element={<Relatorios />} />
               <Route path="/configuracoes" element={<Configuracoes />} />
+
+              {/* Diagnostics Route */}
+              <Route path="/diagnostics" element={<Diagnostics />} />
             </Route>
           </Route>
           <Route path="*" element={<NotFound />} />

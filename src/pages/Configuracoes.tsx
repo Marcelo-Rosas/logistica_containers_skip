@@ -30,14 +30,12 @@ import {
   Bell,
   Plug,
   Activity,
-  Server,
   Database,
-  Globe,
   Trash2,
   AlertTriangle,
+  ArrowRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { Badge } from '@/components/ui/badge'
 import {
   getSettings,
   updateSettings,
@@ -321,6 +319,27 @@ export default function Configuracoes() {
         </TabsContent>
 
         <TabsContent value="system" className="space-y-4">
+          {/* Diagnostics Link */}
+          <div className="flex items-center justify-between p-4 bg-background border rounded-lg mb-4">
+            <div className="space-y-1">
+              <h4 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <Activity className="h-4 w-4 text-primary" />
+                Diagnósticos e QA
+              </h4>
+              <p className="text-sm text-muted-foreground max-w-md">
+                Acesse a suíte de testes para validação de autenticação e Edge
+                Functions.
+              </p>
+            </div>
+            <Button
+              variant="secondary"
+              onClick={() => navigate('/diagnostics')}
+            >
+              Abrir Diagnósticos
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+
           <Card className="border-destructive/20 bg-destructive/5">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-destructive">
