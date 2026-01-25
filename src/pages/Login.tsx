@@ -12,13 +12,18 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { toast } from 'sonner'
-import { Loader2, Lock, Mail, Package } from 'lucide-react'
+import { Loader2, Lock, Mail, Package, AlertCircle } from 'lucide-react'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [loginError, setLoginError] = useState<{
+    title: string
+    message: string
+  } | null>(null)
   const { signIn } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -27,6 +32,8 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    setLoginError(null)
+
     if (!email || !password) {
       toast.error('Preencha email e senha')
       return
@@ -36,17 +43,33 @@ export default function Login() {
     try {
       const { error } = await signIn(email, password)
       if (error) {
+        console.error('Login Error:', error)
+        let errorTitle = 'Falha no Login'
+        let errorMessage = error.message
+
+        // Enhanced Error Handling based on Supabase error codes/messages
         if (error.message.includes('Invalid login credentials')) {
-          toast.error('Email ou senha incorretos')
-        } else {
-          toast.error(`Erro: ${error.message}`)
+          errorTitle = 'Credenciais Inválidas'
+          errorMessage = 'O email ou a senha fornecidos estão incorretos.'
+        } else if (error.message.includes('Email not confirmed')) {
+          errorTitle = 'Email Não Confirmado'
+          errorMessage = 'Por favor, confirme seu email antes de fazer login.'
+        } else if (error.message.includes('Too many requests')) {
+          errorTitle = 'Muitas Tentativas'
+          errorMessage =
+            'Muitas tentativas de login. Tente novamente mais tarde.'
         }
+
+        setLoginError({ title: errorTitle, message: errorMessage })
+        toast.error(errorMessage)
       } else {
         toast.success('Login realizado com sucesso!')
         navigate(from, { replace: true })
       }
     } catch (error) {
-      toast.error('Ocorreu um erro inesperado')
+      const genericMsg = 'Ocorreu um erro inesperado ao tentar fazer login.'
+      setLoginError({ title: 'Erro Inesperado', message: genericMsg })
+      toast.error(genericMsg)
     } finally {
       setIsSubmitting(false)
     }
@@ -76,6 +99,14 @@ export default function Login() {
           </CardHeader>
           <form onSubmit={handleLogin}>
             <CardContent className="space-y-4">
+              {loginError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>{loginError.title}</AlertTitle>
+                  <AlertDescription>{loginError.message}</AlertDescription>
+                </Alert>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">

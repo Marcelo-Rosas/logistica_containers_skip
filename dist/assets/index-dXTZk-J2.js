@@ -41121,15 +41121,43 @@ const AuthProvider = ({ children }) => {
 		children
 	});
 };
+var alertVariants = cva("relative w-full rounded-lg border p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground", {
+	variants: { variant: {
+		default: "bg-background text-foreground",
+		destructive: "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive"
+	} },
+	defaultVariants: { variant: "default" }
+});
+var Alert = import_react.forwardRef(({ className, variant, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+	ref,
+	role: "alert",
+	className: cn(alertVariants({ variant }), className),
+	...props
+}));
+Alert.displayName = "Alert";
+var AlertTitle = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h5", {
+	ref,
+	className: cn("mb-1 font-medium leading-none tracking-tight", className),
+	...props
+}));
+AlertTitle.displayName = "AlertTitle";
+var AlertDescription = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+	ref,
+	className: cn("text-sm [&_p]:leading-relaxed", className),
+	...props
+}));
+AlertDescription.displayName = "AlertDescription";
 function Login() {
 	const [email, setEmail] = (0, import_react.useState)("");
 	const [password, setPassword] = (0, import_react.useState)("");
 	const [isSubmitting, setIsSubmitting] = (0, import_react.useState)(false);
+	const [loginError, setLoginError] = (0, import_react.useState)(null);
 	const { signIn } = useAuth();
 	const navigate = useNavigate();
 	const from = useLocation().state?.from?.pathname || "/";
 	const handleLogin = async (e) => {
 		e.preventDefault();
+		setLoginError(null);
 		if (!email || !password) {
 			toast.error("Preencha email e senha");
 			return;
@@ -41137,14 +41165,36 @@ function Login() {
 		setIsSubmitting(true);
 		try {
 			const { error } = await signIn(email, password);
-			if (error) if (error.message.includes("Invalid login credentials")) toast.error("Email ou senha incorretos");
-			else toast.error(`Erro: ${error.message}`);
-			else {
+			if (error) {
+				console.error("Login Error:", error);
+				let errorTitle = "Falha no Login";
+				let errorMessage = error.message;
+				if (error.message.includes("Invalid login credentials")) {
+					errorTitle = "Credenciais Inválidas";
+					errorMessage = "O email ou a senha fornecidos estão incorretos.";
+				} else if (error.message.includes("Email not confirmed")) {
+					errorTitle = "Email Não Confirmado";
+					errorMessage = "Por favor, confirme seu email antes de fazer login.";
+				} else if (error.message.includes("Too many requests")) {
+					errorTitle = "Muitas Tentativas";
+					errorMessage = "Muitas tentativas de login. Tente novamente mais tarde.";
+				}
+				setLoginError({
+					title: errorTitle,
+					message: errorMessage
+				});
+				toast.error(errorMessage);
+			} else {
 				toast.success("Login realizado com sucesso!");
 				navigate(from, { replace: true });
 			}
 		} catch (error) {
-			toast.error("Ocorreu um erro inesperado");
+			const genericMsg = "Ocorreu um erro inesperado ao tentar fazer login.";
+			setLoginError({
+				title: "Erro Inesperado",
+				message: genericMsg
+			});
+			toast.error(genericMsg);
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -41183,43 +41233,54 @@ function Login() {
 						onSubmit: handleLogin,
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
 							className: "space-y-4",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "space-y-2",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
-									htmlFor: "email",
-									children: "Email"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "relative",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Mail, { className: "absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-										id: "email",
-										type: "email",
-										placeholder: "nome@empresa.com",
-										className: "pl-9",
-										value: email,
-										onChange: (e) => setEmail(e.target.value),
-										disabled: isSubmitting
+							children: [
+								loginError && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Alert, {
+									variant: "destructive",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleAlert, { className: "h-4 w-4" }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AlertTitle, { children: loginError.title }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AlertDescription, { children: loginError.message })
+									]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "space-y-2",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+										htmlFor: "email",
+										children: "Email"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "relative",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Mail, { className: "absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+											id: "email",
+											type: "email",
+											placeholder: "nome@empresa.com",
+											className: "pl-9",
+											value: email,
+											onChange: (e) => setEmail(e.target.value),
+											disabled: isSubmitting
+										})]
 									})]
-								})]
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "space-y-2",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "flex items-center justify-between",
-									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
-										htmlFor: "password",
-										children: "Senha"
-									})
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "relative",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Lock, { className: "absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-										id: "password",
-										type: "password",
-										className: "pl-9",
-										value: password,
-										onChange: (e) => setPassword(e.target.value),
-										disabled: isSubmitting
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "space-y-2",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "flex items-center justify-between",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+											htmlFor: "password",
+											children: "Senha"
+										})
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "relative",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Lock, { className: "absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+											id: "password",
+											type: "password",
+											className: "pl-9",
+											value: password,
+											onChange: (e) => setPassword(e.target.value),
+											disabled: isSubmitting
+										})]
 									})]
-								})]
-							})]
+								})
+							]
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardFooter, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 							className: "w-full",
 							type: "submit",
@@ -42937,4 +42998,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrowserRouter, {
 var App_default = App;
 (0, import_client.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime.jsx)(App_default, {}));
 
-//# sourceMappingURL=index-C0SR6JBi.js.map
+//# sourceMappingURL=index-dXTZk-J2.js.map
