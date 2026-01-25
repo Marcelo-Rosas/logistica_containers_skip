@@ -41080,23 +41080,27 @@ const useAuth = () => {
 const AuthProvider = ({ children }) => {
 	const [user, setUser] = (0, import_react.useState)(null);
 	const [session, setSession] = (0, import_react.useState)(null);
+	const [organizationId, setOrganizationId] = (0, import_react.useState)(null);
 	const [loading, setLoading] = (0, import_react.useState)(true);
 	(0, import_react.useEffect)(() => {
 		supabase.auth.getSession().then(({ data: { session: session$1 } }) => {
 			setSession(session$1);
 			setUser(session$1?.user ?? null);
+			setOrganizationId(session$1?.user?.app_metadata?.organization_id ?? null);
 			setLoading(false);
 		});
 		const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session$1) => {
 			setSession(session$1);
 			setUser(session$1?.user ?? null);
+			setOrganizationId(session$1?.user?.app_metadata?.organization_id ?? null);
 			setLoading(false);
 		});
 		return () => subscription.unsubscribe();
 	}, []);
 	const signIn = async (email, password) => {
+		const cleanEmail = email.trim().toLowerCase();
 		const { error } = await supabase.auth.signInWithPassword({
-			email,
+			email: cleanEmail,
 			password
 		});
 		return { error };
@@ -41106,12 +41110,14 @@ const AuthProvider = ({ children }) => {
 		if (!error) {
 			setUser(null);
 			setSession(null);
+			setOrganizationId(null);
 		}
 		return { error };
 	};
 	const value = {
 		user,
 		session,
+		organizationId,
 		signIn,
 		signOut,
 		loading
@@ -41158,13 +41164,18 @@ function Login() {
 	const handleLogin = async (e) => {
 		e.preventDefault();
 		setLoginError(null);
-		if (!email || !password) {
+		let cleanEmail = email.trim();
+		if (cleanEmail.toLowerCase().includes("[blocked]")) {
+			cleanEmail = cleanEmail.replace(/\s*\[blocked\]\s*/gi, "");
+			setEmail(cleanEmail);
+		}
+		if (!cleanEmail || !password) {
 			toast.error("Preencha email e senha");
 			return;
 		}
 		setIsSubmitting(true);
 		try {
-			const { error } = await signIn(email, password);
+			const { error } = await signIn(cleanEmail, password);
 			if (error) {
 				console.error("Login Error:", error);
 				let errorTitle = "Falha no Login";
@@ -42998,4 +43009,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrowserRouter, {
 var App_default = App;
 (0, import_client.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime.jsx)(App_default, {}));
 
-//# sourceMappingURL=index-dXTZk-J2.js.map
+//# sourceMappingURL=index-2f2WDlLi.js.map

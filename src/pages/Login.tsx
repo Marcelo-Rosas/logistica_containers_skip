@@ -34,14 +34,22 @@ export default function Login() {
     e.preventDefault()
     setLoginError(null)
 
-    if (!email || !password) {
+    // Sanitize email: remove [blocked] suffix and whitespace
+    // This ensures standardized email handling as per user story
+    let cleanEmail = email.trim()
+    if (cleanEmail.toLowerCase().includes('[blocked]')) {
+      cleanEmail = cleanEmail.replace(/\s*\[blocked\]\s*/gi, '')
+      setEmail(cleanEmail) // Update UI with clean email
+    }
+
+    if (!cleanEmail || !password) {
       toast.error('Preencha email e senha')
       return
     }
 
     setIsSubmitting(true)
     try {
-      const { error } = await signIn(email, password)
+      const { error } = await signIn(cleanEmail, password)
       if (error) {
         console.error('Login Error:', error)
         let errorTitle = 'Falha no Login'

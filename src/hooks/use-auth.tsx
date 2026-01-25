@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase/client'
 interface AuthContextType {
   user: User | null
   session: Session | null
+  organizationId: string | null
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signOut: () => Promise<{ error: any }>
   loading: boolean
@@ -29,6 +30,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
+  const [organizationId, setOrganizationId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -36,6 +38,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
+      setOrganizationId(
+        (session?.user?.app_metadata?.organization_id as string) ?? null,
+      )
       setLoading(false)
     })
 
@@ -45,6 +50,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
+      setOrganizationId(
+        (session?.user?.app_metadata?.organization_id as string) ?? null,
+      )
       setLoading(false)
     })
 
@@ -52,8 +60,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   const signIn = async (email: string, password: string) => {
+    // Standardize email handling: trim and ensure lowercase
+    const cleanEmail = email.trim().toLowerCase()
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: cleanEmail,
       password,
     })
     return { error }
@@ -64,6 +74,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!error) {
       setUser(null)
       setSession(null)
+      setOrganizationId(null)
     }
     return { error }
   }
@@ -71,6 +82,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const value = {
     user,
     session,
+    organizationId,
     signIn,
     signOut,
     loading,
