@@ -7,6 +7,36 @@ import {
   LogisticsEvent,
 } from '@/lib/types'
 
+// Helper to get current user's organization_id
+const getOrganizationId = async () => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) throw new Error('User not authenticated')
+
+  // Try to get from metadata first
+  if (user.user_metadata?.organization_id) {
+    return user.user_metadata.organization_id
+  }
+
+  // Fallback: fetch from public.users table
+  const { data: userData, error } = await supabase
+    .from('users')
+    .select('organization_id')
+    .eq('id', user.id)
+    .single()
+
+  if (error || !userData) {
+    console.error('Error fetching organization_id', error)
+    // For demo purposes, if we can't find it, we might want to fail or return a fallback
+    // In a real app, this should be strictly enforced.
+    // We will assume the RLS will block if we don't have one, but we need one for Insert.
+    throw new Error('Organization ID not found for user')
+  }
+
+  return userData.organization_id
+}
+
 // Helper to determine strategy
 const determineStrategy = (items: any[]): BillingStrategy => {
   if (!items || items.length === 0) return 'QUANTITY'
@@ -30,8 +60,6 @@ const calculateOccupancy = (current: number, initial: number) => {
 }
 
 export const getContainers = async (): Promise<Container[]> => {
-  // Explicitly specify the foreign key relationship to avoid ambiguity (PGRST201)
-  // We prioritize the consignee as the main customer relationship for display
   const { data, error } = await supabase
     .from('containers')
     .select(
@@ -48,7 +76,6 @@ export const getContainers = async (): Promise<Container[]> => {
 }
 
 export const getContainer = async (id: string): Promise<Container> => {
-  // Explicitly specify the foreign key relationship to avoid ambiguity (PGRST201)
   const { data: containerData, error: containerError } = await supabase
     .from('containers')
     .select(
@@ -118,6 +145,7 @@ export const getInventory = async (
     unit_net_weight_kg: item.unit_net_weight || 0,
     total_net_weight_kg: item.total_net_weight || 0,
     unit_value: 0,
+    packaging_type: item.packaging_type || 'Box',
   }))
 }
 
@@ -146,6 +174,7 @@ export const getEvents = async (): Promise<LogisticsEvent[]> => {
     timestamp: evt.created_at || new Date().toISOString(),
     responsible: (evt.metadata as any)?.responsible,
     doc_number: (evt.metadata as any)?.doc_number,
+    destination: (evt.metadata as any)?.destination,
   }))
 }
 
@@ -157,7 +186,6 @@ export const createExitEvent = async (params: {
   destination: string
   responsible: string
 }) => {
-  // Use the RPC function defined in migration
   const { data, error } = await supabase.rpc('register_exit_event', {
     p_container_id: params.container_id,
     p_item_id: params.inventory_id,
@@ -169,7 +197,65 @@ export const createExitEvent = async (params: {
   })
 
   if (error) throw error
-  return { ...params, sku: 'ITEM' } // Mock return for UI update
+  return { ...params, sku: 'ITEM' }
+}
+
+export const createContainerWithItems = async (
+  containerData: any,
+  items: any[],
+  requestId: string,
+) => {
+  const orgId = await getOrganizationId()
+
+  // Map simplified types to DB types if necessary
+  // Defaulting to '20ft' if unknown, assuming container_types table has it.
+  // In a real scenario, we should look up the type code.
+  let containerType = '20ft'
+  if (containerData.tipo?.includes('40')) containerType = '40ft'
+  if (containerData.tipo?.includes('HC')) containerType = '40hc'
+
+  // 1. Insert Container
+  const { data: container, error: containerError } = await supabase
+    .from('containers')
+    .insert({
+      container_number: containerData.codigo,
+      bl_number: containerData.bl_number,
+      consignee_id: containerData.cliente_id,
+      organization_id: orgId,
+      status: 'Ativo', // Start as Active if it has items? Or 'Pendente'?
+      container_type: containerType,
+      initial_capacity_cbm: containerData.total_volume_m3 || 33.2, // Fallback
+      total_cbm: containerData.total_volume_m3 || 0,
+      total_gross_weight: containerData.total_weight_kg || 0,
+      notes: `Vessel: ${containerData.vessel || 'N/A'}, Voyage: ${containerData.voyage || 'N/A'}`,
+    })
+    .select()
+    .single()
+
+  if (containerError) throw containerError
+
+  // 2. Prepare Items for RPC
+  const rpcItems = items.map((item) => ({
+    container_id: container.id,
+    product_code: item.sku || 'UNKNOWN',
+    product_name: item.name || 'Unknown Item', // Added product_name to map to description if needed, or handle in RPC mapping
+    description: item.name || 'Unknown Item',
+    original_quantity: Number(item.quantity) || 0,
+    unit: 'un',
+    request_id: requestId,
+  }))
+
+  // 3. Call RPC
+  const { data: itemResults, error: itemsError } = await supabase.rpc(
+    'rpc_container_items_insert_batch',
+    {
+      items: rpcItems,
+    },
+  )
+
+  if (itemsError) throw itemsError
+
+  return { container, itemResults }
 }
 
 // Mapper
@@ -180,6 +266,8 @@ const mapContainerFromDB = (db: any): Container => ({
   tipo: db.container_type || 'Unknown',
   cliente_id: db.consignee_id,
   cliente_nome: db.customers?.name,
+  bl_number: db.bl_number,
+  bl_id: db.bl_number, // Using bl_number as ID for now
 
   total_volume_m3: db.total_cbm || 0,
   total_net_weight_kg: db.total_net_weight || 0,
@@ -190,10 +278,11 @@ const mapContainerFromDB = (db: any): Container => ({
   initial_total_net_weight_kg: db.initial_total_net_weight || 1,
   initial_quantity: db.initial_total_volumes || 1,
 
-  occupancy_rate: 0, // Calculated later if needed
+  occupancy_rate: 0, // Calculated later
   sku_count: 0,
   base_monthly_cost: db.base_monthly_cost || 3000,
   created_at: db.created_at || new Date().toISOString(),
   arrival_date: db.arrival_date,
   storage_start_date: db.storage_start_date,
+  seal: db.seal || '', // If seal exists in DB add to mapper
 })

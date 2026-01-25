@@ -19226,24 +19226,6 @@ var Eye = createLucideIcon("eye", [["path", {
 	r: "3",
 	key: "1v7zrd"
 }]]);
-var FileBraces = createLucideIcon("file-braces", [
-	["path", {
-		d: "M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z",
-		key: "1oefj6"
-	}],
-	["path", {
-		d: "M14 2v5a1 1 0 0 0 1 1h5",
-		key: "wfsgrz"
-	}],
-	["path", {
-		d: "M10 12a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1 1 1 0 0 1 1 1v1a1 1 0 0 0 1 1",
-		key: "1oajmo"
-	}],
-	["path", {
-		d: "M14 18a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1 1 1 0 0 1-1-1v-1a1 1 0 0 0-1-1",
-		key: "mpwhp6"
-	}]
-]);
 var FileSpreadsheet = createLucideIcon("file-spreadsheet", [
 	["path", {
 		d: "M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z",
@@ -32412,6 +32394,17 @@ const supabase = createClient$1("https://dlcakaqppcvguugguddi.supabase.co", "eyJ
 	persistSession: true,
 	autoRefreshToken: true
 } });
+var getOrganizationId = async () => {
+	const { data: { user } } = await supabase.auth.getUser();
+	if (!user) throw new Error("User not authenticated");
+	if (user.user_metadata?.organization_id) return user.user_metadata.organization_id;
+	const { data: userData, error } = await supabase.from("users").select("organization_id").eq("id", user.id).single();
+	if (error || !userData) {
+		console.error("Error fetching organization_id", error);
+		throw new Error("Organization ID not found for user");
+	}
+	return userData.organization_id;
+};
 var determineStrategy = (items) => {
 	if (!items || items.length === 0) return "QUANTITY";
 	if (items.some((i) => (i.cbm || 0) > 0)) return "VOLUME";
@@ -32422,7 +32415,7 @@ var calculateOccupancy = (current, initial) => {
 	if (initial <= 0) return 0;
 	return Math.min(100, Math.round(current / initial * 100));
 };
-const getContainers$1 = async () => {
+const getContainers = async () => {
 	const { data, error } = await supabase.from("containers").select(`
       *,
       customers:customers!containers_consignee_id_fkey (name)
@@ -32457,7 +32450,8 @@ const getInventory = async (containerId) => {
 		unit_volume_m3: (item.cbm || 0) / (item.original_quantity || 1),
 		unit_net_weight_kg: item.unit_net_weight || 0,
 		total_net_weight_kg: item.total_net_weight || 0,
-		unit_value: 0
+		unit_value: 0,
+		packaging_type: item.packaging_type || "Box"
 	}));
 };
 const getEvents$1 = async () => {
@@ -32477,7 +32471,8 @@ const getEvents$1 = async () => {
 		weight_kg: evt.metadata?.weight_removed,
 		timestamp: evt.created_at || (/* @__PURE__ */ new Date()).toISOString(),
 		responsible: evt.metadata?.responsible,
-		doc_number: evt.metadata?.doc_number
+		doc_number: evt.metadata?.doc_number,
+		destination: evt.metadata?.destination
 	}));
 };
 const createExitEvent = async (params) => {
@@ -32496,6 +32491,40 @@ const createExitEvent = async (params) => {
 		sku: "ITEM"
 	};
 };
+const createContainerWithItems = async (containerData, items, requestId) => {
+	const orgId = await getOrganizationId();
+	let containerType = "20ft";
+	if (containerData.tipo?.includes("40")) containerType = "40ft";
+	if (containerData.tipo?.includes("HC")) containerType = "40hc";
+	const { data: container, error: containerError } = await supabase.from("containers").insert({
+		container_number: containerData.codigo,
+		bl_number: containerData.bl_number,
+		consignee_id: containerData.cliente_id,
+		organization_id: orgId,
+		status: "Ativo",
+		container_type: containerType,
+		initial_capacity_cbm: containerData.total_volume_m3 || 33.2,
+		total_cbm: containerData.total_volume_m3 || 0,
+		total_gross_weight: containerData.total_weight_kg || 0,
+		notes: `Vessel: ${containerData.vessel || "N/A"}, Voyage: ${containerData.voyage || "N/A"}`
+	}).select().single();
+	if (containerError) throw containerError;
+	const rpcItems = items.map((item) => ({
+		container_id: container.id,
+		product_code: item.sku || "UNKNOWN",
+		product_name: item.name || "Unknown Item",
+		description: item.name || "Unknown Item",
+		original_quantity: Number(item.quantity) || 0,
+		unit: "un",
+		request_id: requestId
+	}));
+	const { data: itemResults, error: itemsError } = await supabase.rpc("rpc_container_items_insert_batch", { items: rpcItems });
+	if (itemsError) throw itemsError;
+	return {
+		container,
+		itemResults
+	};
+};
 var mapContainerFromDB = (db) => ({
 	id: db.id,
 	codigo: db.container_number,
@@ -32503,6 +32532,8 @@ var mapContainerFromDB = (db) => ({
 	tipo: db.container_type || "Unknown",
 	cliente_id: db.consignee_id,
 	cliente_nome: db.customers?.name,
+	bl_number: db.bl_number,
+	bl_id: db.bl_number,
 	total_volume_m3: db.total_cbm || 0,
 	total_net_weight_kg: db.total_net_weight || 0,
 	total_weight_kg: db.total_gross_weight || 0,
@@ -32515,7 +32546,8 @@ var mapContainerFromDB = (db) => ({
 	base_monthly_cost: db.base_monthly_cost || 3e3,
 	created_at: db.created_at || (/* @__PURE__ */ new Date()).toISOString(),
 	arrival_date: db.arrival_date,
-	storage_start_date: db.storage_start_date
+	storage_start_date: db.storage_start_date,
+	seal: db.seal || ""
 });
 function NextMeasurementCard() {
 	const navigate = useNavigate();
@@ -32532,7 +32564,7 @@ function NextMeasurementCard() {
 		setMeasurementDate(nextDate);
 		const diffTime = Math.abs(nextDate.getTime() - today.getTime());
 		setDaysRemaining(Math.ceil(diffTime / (1e3 * 60 * 60 * 24)));
-		getContainers$1().then((data) => {
+		getContainers().then((data) => {
 			const active = data.filter((a) => a.status === "Ativo").length;
 			setActiveCount(active);
 		}).finally(() => setLoading(false));
@@ -32601,7 +32633,7 @@ function Index() {
 	(0, import_react.useEffect)(() => {
 		const loadData = async () => {
 			try {
-				const activeContainers = (await getContainers$1()).filter((c) => c.status === "Ativo");
+				const activeContainers = (await getContainers()).filter((c) => c.status === "Ativo");
 				const occupancy = activeContainers.length > 0 ? activeContainers.reduce((acc, c) => acc + (c.occupancy_rate || 0), 0) / activeContainers.length : 0;
 				setStats({
 					occupancyRate: Math.round(occupancy),
@@ -35263,30 +35295,6 @@ var clients = [{
 	email: "logistica@rodriguesmarinho.com.br",
 	created_at: "2024-01-15T14:30:00Z"
 }];
-var billsOfLading = [{
-	id: "bl-001",
-	number: "MIQOTAO015443",
-	internal_ref: "S250131868",
-	client_id: "cli-001",
-	client_name: "Global RPX Importadora e Exportadora Ltda",
-	shipper: "Qingdao Long Glory Technology Co., Ltd.",
-	consignee: "Global RPX Importadora e Exportadora Ltda (CNPJ: 38.220.385/0001-75)",
-	notify_party: "Rodrigues & Marinho Fitness Ltda (CNPJ: 60.273.698/0001-40)",
-	vessel: "APL CHANGI",
-	voyage: "069W",
-	port_of_loading: "Qingdao, China",
-	port_of_discharge: "Navegantes, Brazil",
-	total_weight_kg: 13870,
-	total_volume_m3: 55,
-	container_count: 1,
-	status: "Processed",
-	created_at: "2026-01-20T08:00:00Z",
-	freight_terms: "Freight Collect",
-	freight_cost: 2250,
-	freight_currency: "USD",
-	handling_fee: 50,
-	handling_fee_currency: "USD"
-}];
 [
 	{
 		sku: "LGLF-D61",
@@ -35361,7 +35369,6 @@ var allocations = [{
 }];
 var events = [];
 var divergences = [];
-var ediLogs = [];
 const getSettings = async () => Promise.resolve({ ...settings });
 const updateSettings = async (newSettings) => {
 	settings = newSettings;
@@ -35369,12 +35376,10 @@ const updateSettings = async (newSettings) => {
 };
 const resetSystemData = async () => {
 	clients = [];
-	billsOfLading = [];
 	containers = [];
 	allocations = [];
 	events = [];
 	divergences = [];
-	ediLogs = [];
 	return Promise.resolve({ success: true });
 };
 const getClients = async () => Promise.resolve([...clients]);
@@ -35387,7 +35392,7 @@ const createClient = async (data) => {
 	clients.push(newClient);
 	return Promise.resolve(newClient);
 };
-const getContainers = async () => Promise.resolve([...containers]);
+const getContainers$1 = async () => Promise.resolve([...containers]);
 const getEvents = async () => Promise.resolve([...events]);
 const registerEntry = async (data) => {
 	const container = containers.find((c) => c.id === data.container);
@@ -35435,18 +35440,6 @@ const registerEntry = async (data) => {
 		message: "ok"
 	});
 };
-const getBLs = async () => Promise.resolve([...billsOfLading]);
-const getBL = async (id) => Promise.resolve(billsOfLading.find((b$1) => b$1.id === id));
-const createBL = async (data) => {
-	const newBL = {
-		id: `bl-${Date.now()}`,
-		...data,
-		status: "Processed",
-		created_at: (/* @__PURE__ */ new Date()).toISOString()
-	};
-	billsOfLading.unshift(newBL);
-	return Promise.resolve(newBL);
-};
 const uploadBL = async (file, clientId) => {
 	const client = clients.find((c) => c.id === clientId);
 	return {
@@ -35471,7 +35464,6 @@ const uploadBL = async (file, clientId) => {
 	};
 };
 const getDivergences = async () => Promise.resolve([...divergences]);
-const getEDILogs = async (blId) => Promise.resolve(ediLogs.filter((e) => e.bl_id === blId));
 function Clientes() {
 	const [clients$1, setClients] = (0, import_react.useState)([]);
 	const [searchTerm, setSearchTerm] = (0, import_react.useState)("");
@@ -38334,7 +38326,7 @@ function NewExitEventDialog({ open, onOpenChange, onSuccess, initialContainerId 
 	const loadContainers = async () => {
 		setLoading(true);
 		try {
-			setContainers((await getContainers$1()).filter((c) => c.status !== "Vazio"));
+			setContainers((await getContainers()).filter((c) => c.status !== "Vazio"));
 		} catch (error) {
 			toast.error("Erro ao carregar containers");
 		} finally {
@@ -38474,7 +38466,7 @@ function Containers() {
 	}, []);
 	const loadData = async () => {
 		try {
-			setContainers(await getContainers$1());
+			setContainers(await getContainers());
 		} catch (e) {
 			toast.error("Erro ao carregar containers");
 		}
@@ -39074,7 +39066,7 @@ function NewEntryEventDialog({ open, onOpenChange, onSuccess }) {
 	const loadData = async () => {
 		setLoading(true);
 		try {
-			const [cData, contData] = await Promise.all([getClients(), getContainers()]);
+			const [cData, contData] = await Promise.all([getClients(), getContainers$1()]);
 			setClients(cData);
 			setContainers(contData);
 		} catch (e) {
@@ -41926,30 +41918,41 @@ function Layout() {
 }
 function BLManagement() {
 	const navigate = useNavigate();
-	const [bls, setBls] = (0, import_react.useState)([]);
+	const [containers$1, setContainers] = (0, import_react.useState)([]);
 	const [search, setSearch] = (0, import_react.useState)("");
+	const [loading, setLoading] = (0, import_react.useState)(true);
 	(0, import_react.useEffect)(() => {
-		getBLs().then(setBls);
+		loadData();
 	}, []);
-	const filteredBLs = bls.filter((bl) => bl.number.toLowerCase().includes(search.toLowerCase()) || bl.client_name.toLowerCase().includes(search.toLowerCase()));
+	const loadData = async () => {
+		try {
+			setLoading(true);
+			setContainers(await getContainers());
+		} catch (e) {
+			toast.error("Erro ao carregar dados.");
+		} finally {
+			setLoading(false);
+		}
+	};
+	const filteredContainers = containers$1.filter((c) => c.bl_number && c.bl_number.toLowerCase().includes(search.toLowerCase()) || c.cliente_nome && c.cliente_nome.toLowerCase().includes(search.toLowerCase()) || c.codigo.toLowerCase().includes(search.toLowerCase()));
 	const getStatusBadge = (status) => {
 		switch (status) {
-			case "Processed": return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
+			case "Ativo": return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
 				className: "bg-emerald-500",
-				children: "Processado"
+				children: "Ativo"
 			});
-			case "Divergent": return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-				variant: "destructive",
-				children: "Divergente"
+			case "Pendente": return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
+				variant: "secondary",
+				children: "Pendente"
 			});
-			case "Cleared": return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
+			case "Vazio": return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
 				variant: "outline",
-				className: "text-blue-600 border-blue-200 bg-blue-50",
-				children: "Liberado"
+				className: "text-muted-foreground",
+				children: "Vazio"
 			});
 			default: return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
 				variant: "secondary",
-				children: "Pendente"
+				children: status
 			});
 		}
 	};
@@ -41959,53 +41962,56 @@ function BLManagement() {
 			className: "flex justify-between items-center",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
 				className: "text-3xl font-bold tracking-tight",
-				children: "Gestão de BLs"
+				children: "Gestão de Containers & BLs"
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 				className: "text-muted-foreground",
-				children: "Bill of Lading como fonte primária de dados"
+				children: "Monitoramento de cargas e documentação (Supabase Realtime)"
 			})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 				onClick: () => navigate("/bl/cadastrar"),
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Plus, { className: "mr-2 h-4 w-4" }), " Novo BL"]
 			})]
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
 			className: "pb-3",
-			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, { children: "Lista de Documentos" }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, { children: "Containers Registrados" }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "flex items-center py-4",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Search, { className: "mr-2 h-4 w-4 text-muted-foreground" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-					placeholder: "Buscar por número ou cliente...",
+					placeholder: "Buscar por BL, container ou cliente...",
 					value: search,
 					onChange: (e) => setSearch(e.target.value),
 					className: "max-w-sm"
 				})]
 			})]
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Table, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHeader, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableRow, { children: [
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, { children: "Número BL" }),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, { children: "BL Number" }),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, { children: "Container" }),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, { children: "Cliente" }),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, { children: "Navio / Viagem" }),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, { children: "Containers" }),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, { children: "Volume" }),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, { children: "Status" }),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, { children: "Data" }),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, { children: "Data Chegada" }),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, {
 				className: "text-right",
 				children: "Ações"
 			})
-		] }) }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableBody, { children: filteredBLs.length > 0 ? filteredBLs.map((bl) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableRow, {
+		] }) }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableBody, { children: loading ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableRow, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, {
+			colSpan: 7,
+			className: "text-center py-8",
+			children: "Carregando..."
+		}) }) : filteredContainers.length > 0 ? filteredContainers.map((c) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableRow, {
 			className: "hover:bg-slate-50 cursor-pointer",
-			onClick: () => navigate(`/bl/${bl.id}`),
+			onClick: () => navigate(`/containers/${c.id}`),
 			children: [
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableCell, {
 					className: "font-mono font-medium flex items-center gap-2",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FileText, { className: "h-4 w-4 text-muted-foreground" }), bl.number]
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FileText, { className: "h-4 w-4 text-muted-foreground" }), c.bl_number || "-"]
 				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, { children: bl.client_name }),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableCell, { children: [
-					bl.vessel,
-					" - ",
-					bl.voyage
-				] }),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, { children: bl.container_count }),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, { children: getStatusBadge(bl.status) }),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, { children: new Date(bl.created_at).toLocaleDateString("pt-BR") }),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "flex items-center gap-2",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Box, { className: "h-4 w-4 text-blue-500" }), c.codigo]
+				}) }),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, { children: c.cliente_nome }),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableCell, { children: [c.total_volume_m3?.toFixed(2), " m³"] }),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, { children: getStatusBadge(c.status) }),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, { children: c.created_at ? new Date(c.created_at).toLocaleDateString("pt-BR") : "-" }),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, {
 					className: "text-right",
 					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
@@ -42015,10 +42021,10 @@ function BLManagement() {
 					})
 				})
 			]
-		}, bl.id)) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableRow, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, {
+		}, c.id)) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableRow, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, {
 			colSpan: 7,
 			className: "text-center py-8 text-muted-foreground",
-			children: "Nenhum BL encontrado."
+			children: "Nenhum container encontrado."
 		}) }) })] }) })] })]
 	});
 }
@@ -42029,10 +42035,13 @@ function BLRegister() {
 	const [selectedClient, setSelectedClient] = (0, import_react.useState)("");
 	const [file, setFile] = (0, import_react.useState)(null);
 	const [uploading, setUploading] = (0, import_react.useState)(false);
+	const [processing, setProcessing] = (0, import_react.useState)(false);
 	const [progress, setProgress] = (0, import_react.useState)(0);
 	const [extractedData, setExtractedData] = (0, import_react.useState)(null);
+	const [requestId, setRequestId] = (0, import_react.useState)("");
 	(0, import_react.useEffect)(() => {
 		getClients().then(setClients);
+		setRequestId(crypto.randomUUID());
 	}, []);
 	const handleFileChange = (e) => {
 		if (e.target.files && e.target.files[0]) setFile(e.target.files[0]);
@@ -42055,6 +42064,15 @@ function BLRegister() {
 		}, 200);
 		try {
 			const data = await uploadBL(file, selectedClient);
+			if (data.containers && data.containers.length > 0) data.containers[0].items = [{
+				sku: "ITEM-001",
+				name: "Product A",
+				quantity: 100
+			}, {
+				sku: "ITEM-002",
+				name: "Product B",
+				quantity: 50
+			}];
 			clearInterval(interval);
 			setProgress(100);
 			setTimeout(() => {
@@ -42069,12 +42087,26 @@ function BLRegister() {
 		}
 	};
 	const handleConfirm = async () => {
+		if (!extractedData || !extractedData.containers) return;
+		setProcessing(true);
 		try {
-			await createBL(extractedData);
-			toast.success("BL Cadastrado com sucesso!");
+			for (const container of extractedData.containers) await createContainerWithItems({
+				codigo: container.codigo,
+				tipo: container.tipo,
+				bl_number: extractedData.number,
+				cliente_id: selectedClient,
+				total_volume_m3: extractedData.total_volume_m3,
+				total_weight_kg: extractedData.total_weight_kg,
+				vessel: extractedData.vessel,
+				voyage: extractedData.voyage
+			}, container.items || [], requestId);
+			toast.success("Container e Itens registrados com sucesso!");
 			navigate("/bl");
 		} catch (e) {
-			toast.error("Erro ao criar BL.");
+			console.error(e);
+			toast.error(`Erro ao criar container: ${e.message || "Erro desconhecido"}`);
+		} finally {
+			setProcessing(false);
 		}
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -42087,7 +42119,7 @@ function BLRegister() {
 					children: "Cadastro de BL"
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 					className: "text-muted-foreground",
-					children: "Importação automática via OCR para integridade de dados"
+					children: "Importação automática via OCR para integridade de dados (Supabase)"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -42103,11 +42135,6 @@ function BLRegister() {
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: cn("flex items-center justify-center w-8 h-8 rounded-full border text-sm font-medium transition-colors", step >= 2 ? "bg-primary text-primary-foreground border-primary" : "bg-muted text-muted-foreground"),
 							children: "2"
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: cn("h-1 w-16 rounded-full transition-colors", step >= 3 ? "bg-primary" : "bg-muted") }),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: cn("flex items-center justify-center w-8 h-8 rounded-full border text-sm font-medium transition-colors", step >= 3 ? "bg-primary text-primary-foreground border-primary" : "bg-muted text-muted-foreground"),
-							children: "3"
 						})
 					]
 				})
@@ -42200,7 +42227,14 @@ function BLRegister() {
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
 						className: "flex items-center gap-2",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheck, { className: "h-5 w-5 text-emerald-500" }), "Revisão de Dados Extraídos"]
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, { children: "Verifique se as informações correspondem ao documento original." })] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardDescription, { children: [
+						"Verifique se as informações correspondem ao documento original. Request ID:",
+						" ",
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							className: "font-mono text-xs",
+							children: requestId
+						})
+					] })] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
 						className: "grid gap-6 md:grid-cols-2",
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -42246,26 +42280,6 @@ function BLRegister() {
 									className: "font-medium",
 									children: extractedData.port_of_discharge
 								})]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "space-y-1",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
-									className: "text-muted-foreground text-xs",
-									children: "Peso Total"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "font-medium",
-									children: [extractedData.total_weight_kg.toLocaleString(), " kg"]
-								})]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "space-y-1",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
-									className: "text-muted-foreground text-xs",
-									children: "Volume Total"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "font-medium",
-									children: [extractedData.total_volume_m3.toLocaleString(), " m³"]
-								})]
 							})
 						]
 					})] }),
@@ -42281,23 +42295,36 @@ function BLRegister() {
 						}) }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: "space-y-2",
 							children: extractedData.containers.map((c, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "flex items-center justify-between p-3 bg-white rounded border shadow-sm animate-pulse-subtle",
+								className: "flex flex-col p-3 bg-white rounded border shadow-sm animate-pulse-subtle",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "flex items-center gap-3",
+									className: "flex items-center justify-between mb-2",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "flex items-center gap-3",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Box, { className: "h-4 w-4 text-blue-500" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "font-mono font-bold",
+												children: c.codigo
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "text-xs px-2 py-0.5 rounded bg-slate-100",
+												children: c.tipo
+											})
+										]
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "text-sm text-muted-foreground",
+										children: ["Lacre: ", c.seal]
+									})]
+								}), c.items && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "text-xs text-muted-foreground pl-7",
 									children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Box, { className: "h-4 w-4 text-blue-500" }),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-											className: "font-mono font-bold",
-											children: c.codigo
-										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-											className: "text-xs px-2 py-0.5 rounded bg-slate-100",
-											children: c.tipo
-										})
+										"Itens a importar: ",
+										c.items.length,
+										" (Ex:",
+										" ",
+										c.items[0]?.name,
+										"...)"
 									]
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "text-sm text-muted-foreground",
-									children: ["Lacre: ", c.seal]
 								})]
 							}, i))
 						}) })]
@@ -42307,11 +42334,13 @@ function BLRegister() {
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 							variant: "ghost",
 							onClick: () => setStep(1),
+							disabled: processing,
 							children: "Voltar"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 							onClick: handleConfirm,
 							className: "bg-emerald-600 hover:bg-emerald-700",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheck, { className: "mr-2 h-4 w-4" }), "Confirmar Cadastro"]
+							disabled: processing,
+							children: [processing ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "mr-2 h-4 w-4 animate-spin" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheck, { className: "mr-2 h-4 w-4" }), processing ? "Registrando..." : "Confirmar Cadastro"]
 						})]
 					})
 				]
@@ -42322,22 +42351,33 @@ function BLRegister() {
 function BLDetails() {
 	const { id } = useParams();
 	const navigate = useNavigate();
-	const [bl, setBL] = (0, import_react.useState)(null);
 	const [containers$1, setContainers] = (0, import_react.useState)([]);
-	const [ediLogs$1, setEdiLogs] = (0, import_react.useState)([]);
-	const [divergences$1, setDivergences] = (0, import_react.useState)([]);
+	const [loading, setLoading] = (0, import_react.useState)(true);
 	(0, import_react.useEffect)(() => {
-		if (id) {
-			getBL(id).then(setBL);
-			getContainers().then((data) => setContainers(data.filter((c) => c.bl_id === id)));
-			getEDILogs(id).then(setEdiLogs);
-			getDivergences().then((data) => setDivergences(data.filter((d) => d.bl_id === id)));
-		}
+		if (id) loadData(id);
 	}, [id]);
-	if (!bl) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+	const loadData = async (blId) => {
+		try {
+			setLoading(true);
+			setContainers((await getContainers()).filter((c) => c.bl_number === blId || c.bl_id === blId || c.id === blId));
+		} catch (e) {
+			console.error(e);
+		} finally {
+			setLoading(false);
+		}
+	};
+	if (loading) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 		className: "p-8",
 		children: "Carregando..."
 	});
+	if (containers$1.length === 0) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+		className: "p-8",
+		children: "BL não encontrado ou sem containers."
+	});
+	const blNumber = containers$1[0].bl_number;
+	const clientName = containers$1[0].cliente_nome;
+	const totalVolume = containers$1.reduce((acc, c) => acc + (c.total_volume_m3 || 0), 0);
+	const totalWeight = containers$1.reduce((acc, c) => acc + (c.total_weight_kg || 0), 0);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: "space-y-6 animate-fade-in",
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -42353,216 +42393,60 @@ function BLDetails() {
 					className: "text-3xl font-bold tracking-tight flex items-center gap-2",
 					children: [
 						"BL ",
-						bl.number,
-						bl.internal_ref && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-							className: "text-lg font-normal text-muted-foreground",
-							children: ["| Ref: ", bl.internal_ref]
-						}),
-						bl.status === "Divergent" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-							variant: "destructive",
-							children: "Divergente"
-						}),
-						bl.status === "Processed" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
+						blNumber,
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
 							className: "bg-emerald-500",
-							children: "Processado"
+							children: "Ativo"
 						})
 					]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 					className: "text-muted-foreground",
-					children: bl.client_name
+					children: clientName
 				})]
 			})]
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Tabs, {
 			defaultValue: "data",
 			className: "w-full",
 			children: [
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TabsList, { children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsTrigger, {
-						value: "data",
-						children: "Dados da BL"
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsTrigger, {
-						value: "financial",
-						children: "Financeiro"
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TabsTrigger, {
-						value: "containers",
-						children: [
-							"Containers (",
-							containers$1.length,
-							")"
-						]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsTrigger, {
-						value: "edi",
-						children: "EDI Logs"
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TabsTrigger, {
-						value: "divergences",
-						className: cn(divergences$1.length > 0 && "text-red-500"),
-						children: [
-							"Divergências (",
-							divergences$1.length,
-							")"
-						]
-					})
-				] }),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TabsContent, {
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TabsList, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsTrigger, {
+					value: "data",
+					children: "Dados Gerais"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TabsTrigger, {
+					value: "containers",
+					children: [
+						"Containers (",
+						containers$1.length,
+						")"
+					]
+				})] }),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsContent, {
 					value: "data",
 					className: "mt-4 space-y-4",
-					children: [
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardHeader, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, { children: "Parties (Entidades Envolvidas)" }) }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-							className: "grid md:grid-cols-2 gap-6",
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "space-y-1",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "text-sm text-muted-foreground",
-										children: "Shipper"
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "font-medium text-sm",
-										children: bl.shipper
-									})]
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "space-y-1",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "text-sm text-muted-foreground",
-										children: "Consignee"
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "font-medium text-sm",
-										children: bl.consignee
-									})]
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "space-y-1",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "text-sm text-muted-foreground",
-										children: "Notify Party"
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "font-medium text-sm",
-										children: bl.notify_party || "-"
-									})]
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "space-y-1",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "text-sm text-muted-foreground",
-										children: "Forwarding Agent"
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "font-medium text-sm",
-										children: bl.forwarding_agent || "-"
-									})]
-								})
-							]
-						})] }),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardHeader, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, { children: "Logística e Transporte" }) }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-							className: "grid md:grid-cols-4 gap-4",
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-sm text-muted-foreground",
-									children: "Navio"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "font-medium",
-									children: bl.vessel
-								})] }),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-sm text-muted-foreground",
-									children: "Viagem"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "font-medium",
-									children: bl.voyage
-								})] }),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-sm text-muted-foreground",
-									children: "Porto de Origem"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "font-medium",
-									children: bl.port_of_loading
-								})] }),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-sm text-muted-foreground",
-									children: "Porto de Destino"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "font-medium",
-									children: bl.port_of_discharge
-								})] })
-							]
-						})] }),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardHeader, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, { children: "Totais Declarados" }) }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-							className: "grid md:grid-cols-3 gap-4",
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-sm text-muted-foreground",
-									children: "Containers"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "font-medium",
-									children: bl.container_count
-								})] }),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-sm text-muted-foreground",
-									children: "Peso Bruto Total"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-									className: "font-medium",
-									children: [bl.total_weight_kg.toLocaleString(), " kg"]
-								})] }),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-sm text-muted-foreground",
-									children: "Volume Total"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-									className: "font-medium",
-									children: [bl.total_volume_m3.toLocaleString(), " m³"]
-								})] })
-							]
-						})] })
-					]
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsContent, {
-					value: "financial",
-					className: "mt-4",
-					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
-						className: "flex items-center gap-2",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DollarSign, { className: "h-5 w-5 text-emerald-600" }), "Resumo Financeiro"]
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, { children: "Termos de frete e taxas associadas ao BL." })] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-						className: "grid md:grid-cols-2 gap-6",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "p-4 bg-slate-50 rounded-lg border",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h4", {
-								className: "font-semibold mb-2",
-								children: "Freight Terms"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-								variant: "outline",
-								className: "text-lg",
-								children: bl.freight_terms || "N/A"
-							})]
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "space-y-4",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "flex justify-between items-center border-b pb-2",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "text-muted-foreground",
-									children: "International Freight"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "font-bold text-lg",
-									children: bl.freight_cost?.toLocaleString("en-US", {
-										style: "currency",
-										currency: bl.freight_currency || "USD"
-									})
-								})]
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "flex justify-between items-center border-b pb-2",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "text-muted-foreground",
-									children: "Origin Handling Fee"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "font-bold text-lg",
-									children: bl.handling_fee?.toLocaleString("en-US", {
-										style: "currency",
-										currency: bl.handling_fee_currency || "USD"
-									})
-								})]
-							})]
-						})]
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, { children: "Totais Calculados" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, { children: "Baseado nos containers registrados." })] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
+						className: "grid md:grid-cols-3 gap-4",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-sm text-muted-foreground",
+								children: "Containers"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "font-medium",
+								children: containers$1.length
+							})] }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-sm text-muted-foreground",
+								children: "Peso Total Estimado"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+								className: "font-medium",
+								children: [totalWeight.toLocaleString(), " kg"]
+							})] }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-sm text-muted-foreground",
+								children: "Volume Total"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+								className: "font-medium",
+								children: [totalVolume.toLocaleString(), " m³"]
+							})] })
+						]
 					})] })
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsContent, {
@@ -42571,7 +42455,6 @@ function BLDetails() {
 					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardHeader, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, { children: "Containers Associados" }) }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Table, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHeader, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableRow, { children: [
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, { children: "Código" }),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, { children: "Tipo" }),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, { children: "Lacre (Seal)" }),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, { children: "Status" }),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, {
 							className: "text-right",
@@ -42582,8 +42465,7 @@ function BLDetails() {
 							className: "font-mono",
 							children: c.codigo
 						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, { children: c.tipo || c.capacidade }),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, { children: c.seal || "-" }),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, { children: c.tipo }),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
 							variant: "outline",
 							children: c.status
@@ -42598,77 +42480,6 @@ function BLDetails() {
 							})
 						})
 					] }, c.id)) })] }) })] })
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsContent, {
-					value: "edi",
-					className: "mt-4",
-					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardHeader, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, { children: "Histórico EDI" }) }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "space-y-4",
-						children: ediLogs$1.length > 0 ? ediLogs$1.map((log) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "border p-4 rounded-md flex justify-between items-start",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "space-y-1",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "flex items-center gap-2",
-									children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FileBraces, { className: "h-4 w-4 text-blue-500" }),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-											className: "font-mono text-sm",
-											children: log.id
-										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-											variant: "outline",
-											children: log.status
-										})
-									]
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("pre", {
-									className: "text-xs bg-slate-100 p-2 rounded text-muted-foreground overflow-x-auto max-w-xl",
-									children: log.payload_snippet
-								})]
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								className: "text-xs text-muted-foreground",
-								children: new Date(log.received_at).toLocaleString()
-							})]
-						}, log.id)) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "flex flex-col items-center py-8 text-muted-foreground",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Info, { className: "h-8 w-8 mb-2 opacity-50" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: "Nenhum log EDI encontrado." })]
-						})
-					}) })] })
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsContent, {
-					value: "divergences",
-					className: "mt-4",
-					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
-						className: "text-red-600 flex items-center gap-2",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TriangleAlert, { className: "h-5 w-5" }), "Central de Divergências"]
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, { children: "Inconsistências encontradas entre BL físico e EDI." })] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, { children: divergences$1.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "flex flex-col items-center py-8 text-emerald-600",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheck, { className: "h-12 w-12 mb-2" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: "font-medium",
-							children: "Nenhuma divergência encontrada."
-						})]
-					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Table, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHeader, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableRow, { children: [
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, { children: "Tipo" }),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, { children: "Descrição" }),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, { children: "Valor BL" }),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, { children: "Valor EDI" }),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, { children: "Status" })
-					] }) }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableBody, { children: divergences$1.map((d) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableRow, { children: [
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-							variant: d.severity === "Critical" ? "destructive" : "secondary",
-							children: d.type
-						}) }),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, { children: d.description }),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, {
-							className: "font-mono text-xs",
-							children: d.bl_value || "-"
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, {
-							className: "font-mono text-xs",
-							children: d.edi_value || "-"
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, { children: d.status })
-					] }, d.id)) })] }) })] })
 				})
 			]
 		})]
@@ -42855,4 +42666,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrowserRouter, {
 var App_default = App;
 (0, import_client.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime.jsx)(App_default, {}));
 
-//# sourceMappingURL=index-UTxtS44m.js.map
+//# sourceMappingURL=index-BKWQMAQp.js.map

@@ -17,16 +17,9 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Upload,
-  FileText,
-  CheckCircle2,
-  ArrowRight,
-  Loader2,
-  AlertCircle,
-  Box,
-} from 'lucide-react'
-import { getClients, uploadBL, createBL } from '@/lib/mock-service'
+import { Upload, CheckCircle2, ArrowRight, Loader2, Box } from 'lucide-react'
+import { getClients, uploadBL } from '@/lib/mock-service' // Keeping mock for OCR/Parsing
+import { createContainerWithItems } from '@/services/container'
 import { Client } from '@/lib/types'
 import { toast } from 'sonner'
 import { useNavigate } from 'react-router-dom'
@@ -40,11 +33,15 @@ export default function BLRegister() {
   const [selectedClient, setSelectedClient] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [processing, setProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [extractedData, setExtractedData] = useState<any>(null)
+  const [requestId, setRequestId] = useState('')
 
   useEffect(() => {
     getClients().then(setClients)
+    // Generate Request ID on mount (or reset)
+    setRequestId(crypto.randomUUID())
   }, [])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,7 +52,6 @@ export default function BLRegister() {
 
   const handleUpload = async () => {
     if (!file || !selectedClient) {
-      // Trigger shake animation via DOM manipulation or just toast
       const card = document.getElementById('upload-card')
       card?.classList.add('animate-shake')
       setTimeout(() => card?.classList.remove('animate-shake'), 500)
@@ -66,7 +62,7 @@ export default function BLRegister() {
     setUploading(true)
     setProgress(0)
 
-    // Simulate progress
+    // Simulate progress for OCR
     const interval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 90) return prev
@@ -75,7 +71,18 @@ export default function BLRegister() {
     }, 200)
 
     try {
+      // Keep using mock for OCR parsing as we don't have real OCR backend
       const data = await uploadBL(file, selectedClient)
+
+      // Inject dummy items for the extracted container to simulate Packing List items
+      if (data.containers && data.containers.length > 0) {
+        // Add mock items to the first container for demonstration
+        data.containers[0].items = [
+          { sku: 'ITEM-001', name: 'Product A', quantity: 100 },
+          { sku: 'ITEM-002', name: 'Product B', quantity: 50 },
+        ]
+      }
+
       clearInterval(interval)
       setProgress(100)
       setTimeout(() => {
@@ -91,12 +98,37 @@ export default function BLRegister() {
   }
 
   const handleConfirm = async () => {
+    if (!extractedData || !extractedData.containers) return
+
+    setProcessing(true)
     try {
-      await createBL(extractedData)
-      toast.success('BL Cadastrado com sucesso!')
+      // Loop through containers and create them with items
+      for (const container of extractedData.containers) {
+        const containerPayload = {
+          codigo: container.codigo,
+          tipo: container.tipo,
+          bl_number: extractedData.number,
+          cliente_id: selectedClient,
+          total_volume_m3: extractedData.total_volume_m3,
+          total_weight_kg: extractedData.total_weight_kg,
+          vessel: extractedData.vessel,
+          voyage: extractedData.voyage,
+        }
+
+        const items = container.items || [] // Use extracted items
+
+        await createContainerWithItems(containerPayload, items, requestId)
+      }
+
+      toast.success('Container e Itens registrados com sucesso!')
       navigate('/bl')
-    } catch (e) {
-      toast.error('Erro ao criar BL.')
+    } catch (e: any) {
+      console.error(e)
+      toast.error(
+        `Erro ao criar container: ${e.message || 'Erro desconhecido'}`,
+      )
+    } finally {
+      setProcessing(false)
     }
   }
 
@@ -105,7 +137,7 @@ export default function BLRegister() {
       <div className="flex flex-col space-y-2 text-center mb-8">
         <h2 className="text-3xl font-bold tracking-tight">Cadastro de BL</h2>
         <p className="text-muted-foreground">
-          Importação automática via OCR para integridade de dados
+          Importação automática via OCR para integridade de dados (Supabase)
         </p>
       </div>
 
@@ -137,22 +169,6 @@ export default function BLRegister() {
             )}
           >
             2
-          </div>
-          <div
-            className={cn(
-              'h-1 w-16 rounded-full transition-colors',
-              step >= 3 ? 'bg-primary' : 'bg-muted',
-            )}
-          ></div>
-          <div
-            className={cn(
-              'flex items-center justify-center w-8 h-8 rounded-full border text-sm font-medium transition-colors',
-              step >= 3
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-muted text-muted-foreground',
-            )}
-          >
-            3
           </div>
         </div>
       </div>
@@ -249,6 +265,8 @@ export default function BLRegister() {
               </CardTitle>
               <CardDescription>
                 Verifique se as informações correspondem ao documento original.
+                Request ID:{' '}
+                <span className="font-mono text-xs">{requestId}</span>
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6 md:grid-cols-2">
@@ -284,22 +302,6 @@ export default function BLRegister() {
                   {extractedData.port_of_discharge}
                 </div>
               </div>
-              <div className="space-y-1">
-                <Label className="text-muted-foreground text-xs">
-                  Peso Total
-                </Label>
-                <div className="font-medium">
-                  {extractedData.total_weight_kg.toLocaleString()} kg
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-muted-foreground text-xs">
-                  Volume Total
-                </Label>
-                <div className="font-medium">
-                  {extractedData.total_volume_m3.toLocaleString()} m³
-                </div>
-              </div>
             </CardContent>
           </Card>
 
@@ -314,18 +316,26 @@ export default function BLRegister() {
                 {extractedData.containers.map((c: any, i: number) => (
                   <div
                     key={i}
-                    className="flex items-center justify-between p-3 bg-white rounded border shadow-sm animate-pulse-subtle"
+                    className="flex flex-col p-3 bg-white rounded border shadow-sm animate-pulse-subtle"
                   >
-                    <div className="flex items-center gap-3">
-                      <Box className="h-4 w-4 text-blue-500" />
-                      <span className="font-mono font-bold">{c.codigo}</span>
-                      <span className="text-xs px-2 py-0.5 rounded bg-slate-100">
-                        {c.tipo}
-                      </span>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <Box className="h-4 w-4 text-blue-500" />
+                        <span className="font-mono font-bold">{c.codigo}</span>
+                        <span className="text-xs px-2 py-0.5 rounded bg-slate-100">
+                          {c.tipo}
+                        </span>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Lacre: {c.seal}
+                      </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      Lacre: {c.seal}
-                    </div>
+                    {c.items && (
+                      <div className="text-xs text-muted-foreground pl-7">
+                        Itens a importar: {c.items.length} (Ex:{' '}
+                        {c.items[0]?.name}...)
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -333,15 +343,24 @@ export default function BLRegister() {
           </Card>
 
           <div className="flex justify-between">
-            <Button variant="ghost" onClick={() => setStep(1)}>
+            <Button
+              variant="ghost"
+              onClick={() => setStep(1)}
+              disabled={processing}
+            >
               Voltar
             </Button>
             <Button
               onClick={handleConfirm}
               className="bg-emerald-600 hover:bg-emerald-700"
+              disabled={processing}
             >
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-              Confirmar Cadastro
+              {processing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+              )}
+              {processing ? 'Registrando...' : 'Confirmar Cadastro'}
             </Button>
           </div>
         </div>
