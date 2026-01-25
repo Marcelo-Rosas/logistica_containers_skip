@@ -14,6 +14,7 @@ import Configuracoes from './pages/Configuracoes'
 import Faturamento from './pages/Faturamento'
 import NotFound from './pages/NotFound'
 import Login from './pages/Login'
+import ResetPassword from './pages/ResetPassword'
 import Layout from './components/Layout'
 
 // New Pages
@@ -36,6 +37,7 @@ const App = () => (
         <Sonner />
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           <Route element={<RequireAuth />}>
             <Route element={<Layout />}>

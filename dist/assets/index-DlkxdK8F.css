@@ -774,6 +774,9 @@ section[aria-label='Notifications alt+T'] {
 .-ml-1{
   margin-left: -0.25rem;
 }
+.-ml-2{
+  margin-left: -0.5rem;
+}
 .-ml-4{
   margin-left: -1rem;
 }
@@ -1678,6 +1681,10 @@ section[aria-label='Notifications alt+T'] {
 }
 .p-\[1px\]{
   padding: 1px;
+}
+.px-0{
+  padding-left: 0px;
+  padding-right: 0px;
 }
 .px-1{
   padding-left: 0.25rem;

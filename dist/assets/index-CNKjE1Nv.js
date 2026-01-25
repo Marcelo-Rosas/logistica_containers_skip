@@ -19328,6 +19328,16 @@ var Info = createLucideIcon("info", [
 		key: "e9boi3"
 	}]
 ]);
+var KeyRound = createLucideIcon("key-round", [["path", {
+	d: "M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z",
+	key: "1s6t7t"
+}], ["circle", {
+	cx: "16.5",
+	cy: "7.5",
+	r: ".5",
+	fill: "currentColor",
+	key: "w0ekpg"
+}]]);
 var LayoutDashboard = createLucideIcon("layout-dashboard", [
 	["rect", {
 		width: "7",
@@ -41114,12 +41124,29 @@ const AuthProvider = ({ children }) => {
 		}
 		return { error };
 	};
+	const resetPassword = async (email) => {
+		const cleanEmail = email.trim().toLowerCase();
+		const { data, error } = await supabase.auth.resetPasswordForEmail(cleanEmail, { redirectTo: `${window.location.origin}/reset-password` });
+		return {
+			data,
+			error
+		};
+	};
+	const updatePassword = async (password) => {
+		const { data, error } = await supabase.auth.updateUser({ password });
+		return {
+			data,
+			error
+		};
+	};
 	const value = {
 		user,
 		session,
 		organizationId,
 		signIn,
 		signOut,
+		resetPassword,
+		updatePassword,
 		loading
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AuthContext.Provider, {
@@ -41157,8 +41184,9 @@ function Login() {
 	const [email, setEmail] = (0, import_react.useState)("");
 	const [password, setPassword] = (0, import_react.useState)("");
 	const [isSubmitting, setIsSubmitting] = (0, import_react.useState)(false);
+	const [view, setView] = (0, import_react.useState)("login");
 	const [loginError, setLoginError] = (0, import_react.useState)(null);
-	const { signIn } = useAuth();
+	const { signIn, resetPassword } = useAuth();
 	const navigate = useNavigate();
 	const from = useLocation().state?.from?.pathname || "/";
 	const handleLogin = async (e) => {
@@ -41210,6 +41238,33 @@ function Login() {
 			setIsSubmitting(false);
 		}
 	};
+	const handleForgotPassword = async (e) => {
+		e.preventDefault();
+		setLoginError(null);
+		let cleanEmail = email.trim();
+		if (cleanEmail.toLowerCase().includes("[blocked]")) {
+			cleanEmail = cleanEmail.replace(/\s*\[blocked\]\s*/gi, "");
+			setEmail(cleanEmail);
+		}
+		if (!cleanEmail) {
+			toast.error("Informe seu email para recuperação");
+			return;
+		}
+		setIsSubmitting(true);
+		try {
+			const { error } = await resetPassword(cleanEmail);
+			if (error) if (error.message.includes("Too many requests")) toast.error("Muitas tentativas. Aguarde um momento.");
+			else toast.error("Erro ao enviar email de recuperação.");
+			else {
+				toast.success("Email de recuperação enviado! Verifique sua caixa de entrada.");
+				setView("login");
+			}
+		} catch (error) {
+			toast.error("Erro inesperado.");
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 		className: "flex min-h-screen items-center justify-center bg-slate-100 p-4",
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -41232,9 +41287,9 @@ function Login() {
 						})
 					]
 				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Card, {
 					className: "border-slate-200 shadow-xl",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
+					children: view === "login" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
 						className: "space-y-1",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
 							className: "text-xl",
@@ -41250,7 +41305,16 @@ function Login() {
 									children: [
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleAlert, { className: "h-4 w-4" }),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AlertTitle, { children: loginError.title }),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AlertDescription, { children: loginError.message })
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(AlertDescription, { children: [loginError.message, loginError.title === "Credenciais Inválidas" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "mt-2",
+											children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+												variant: "link",
+												className: "h-auto p-0 text-destructive-foreground underline",
+												onClick: () => setView("forgot_password"),
+												type: "button",
+												children: "Esqueceu sua senha?"
+											})
+										})] })
 									]
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -41273,12 +41337,19 @@ function Login() {
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 									className: "space-y-2",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 										className: "flex items-center justify-between",
-										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
 											htmlFor: "password",
 											children: "Senha"
-										})
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											variant: "link",
+											size: "sm",
+											className: "px-0 font-normal h-auto",
+											onClick: () => setView("forgot_password"),
+											type: "button",
+											children: "Esqueceu?"
+										})]
 									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 										className: "relative",
 										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Lock, { className: "absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
@@ -41298,13 +41369,175 @@ function Login() {
 							disabled: isSubmitting,
 							children: isSubmitting ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "mr-2 h-4 w-4 animate-spin" }), "Entrando..."] }) : "Entrar"
 						}) })]
-					})]
+					})] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
+						className: "space-y-1",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "flex items-center gap-2 mb-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								variant: "ghost",
+								size: "icon",
+								className: "h-8 w-8 -ml-2",
+								onClick: () => setView("login"),
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ArrowLeft, { className: "h-4 w-4" })
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
+								className: "text-xl",
+								children: "Recuperar Senha"
+							})]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, { children: "Enviaremos um link de recuperação para o seu email." })]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
+						onSubmit: handleForgotPassword,
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
+							className: "space-y-4",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "space-y-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+									htmlFor: "reset-email",
+									children: "Email"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "relative",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Mail, { className: "absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+										id: "reset-email",
+										type: "email",
+										placeholder: "nome@empresa.com",
+										className: "pl-9",
+										value: email,
+										onChange: (e) => setEmail(e.target.value),
+										disabled: isSubmitting
+									})]
+								})]
+							})
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardFooter, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							className: "w-full",
+							type: "submit",
+							disabled: isSubmitting,
+							children: isSubmitting ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "mr-2 h-4 w-4 animate-spin" }), "Enviando..."] }) : "Enviar Link de Recuperação"
+						}) })]
+					})] })
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 					className: "mt-4 text-center text-xs text-muted-foreground",
 					children: "© 2026 Logística Container Inc. Todos os direitos reservados."
 				})
 			]
+		})
+	});
+}
+function ResetPassword() {
+	const [password, setPassword] = (0, import_react.useState)("");
+	const [confirmPassword, setConfirmPassword] = (0, import_react.useState)("");
+	const [isSubmitting, setIsSubmitting] = (0, import_react.useState)(false);
+	const { updatePassword, session, loading } = useAuth();
+	const navigate = useNavigate();
+	(0, import_react.useEffect)(() => {
+		if (!loading && !session) {
+			const hash = window.location.hash;
+			if (!hash || !hash.includes("access_token")) {
+				toast.error("Link de recuperação inválido ou expirado.");
+				navigate("/login");
+			}
+		}
+	}, [
+		session,
+		loading,
+		navigate
+	]);
+	const handleReset = async (e) => {
+		e.preventDefault();
+		if (password !== confirmPassword) {
+			toast.error("As senhas não coincidem.");
+			return;
+		}
+		if (password.length < 6) {
+			toast.error("A senha deve ter pelo menos 6 caracteres.");
+			return;
+		}
+		setIsSubmitting(true);
+		try {
+			const { error } = await updatePassword(password);
+			if (error) toast.error("Erro ao atualizar senha: " + error.message);
+			else {
+				toast.success("Senha atualizada com sucesso!");
+				navigate("/login");
+			}
+		} catch (error) {
+			toast.error("Erro inesperado ao atualizar senha.");
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+	if (loading) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+		className: "flex min-h-screen items-center justify-center bg-slate-100",
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "h-8 w-8 animate-spin text-primary" })
+	});
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+		className: "flex min-h-screen items-center justify-center bg-slate-100 p-4",
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "w-full max-w-md animate-fade-in-up",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "mb-6 flex flex-col items-center text-center",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground mb-4 shadow-lg",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(KeyRound, { className: "h-6 w-6" })
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+						className: "text-2xl font-bold tracking-tight",
+						children: "Definir Nova Senha"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-sm text-muted-foreground",
+						children: "Crie uma nova senha segura para sua conta"
+					})
+				]
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+				className: "border-slate-200 shadow-xl",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, { children: "Nova Senha" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, { children: "Digite sua nova senha abaixo." })] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
+					onSubmit: handleReset,
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
+						className: "space-y-4",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "space-y-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+								htmlFor: "password",
+								children: "Nova Senha"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "relative",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Lock, { className: "absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+									id: "password",
+									type: "password",
+									className: "pl-9",
+									value: password,
+									onChange: (e) => setPassword(e.target.value),
+									disabled: isSubmitting,
+									required: true
+								})]
+							})]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "space-y-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+								htmlFor: "confirm-password",
+								children: "Confirmar Nova Senha"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "relative",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Lock, { className: "absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+									id: "confirm-password",
+									type: "password",
+									className: "pl-9",
+									value: confirmPassword,
+									onChange: (e) => setConfirmPassword(e.target.value),
+									disabled: isSubmitting,
+									required: true
+								})]
+							})]
+						})]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardFooter, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						className: "w-full",
+						type: "submit",
+						disabled: isSubmitting,
+						children: isSubmitting ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "mr-2 h-4 w-4 animate-spin" }), "Atualizando..."] }) : "Atualizar Senha"
+					}) })]
+				})]
+			})]
 		})
 	});
 }
@@ -41942,7 +42175,7 @@ var require_use_sync_external_store_shim_development = /* @__PURE__ */ __commonJ
 				var cachedValue = getSnapshot();
 				objectIs(value, cachedValue) || (console.error("The result of getSnapshot should be cached to avoid an infinite loop"), didWarnUncachedGetSnapshot = !0);
 			}
-			cachedValue = useState$17({ inst: {
+			cachedValue = useState$18({ inst: {
 				value,
 				getSnapshot
 			} });
@@ -41956,7 +42189,7 @@ var require_use_sync_external_store_shim_development = /* @__PURE__ */ __commonJ
 				value,
 				getSnapshot
 			]);
-			useEffect$16(function() {
+			useEffect$17(function() {
 				checkIfSnapshotChanged(inst) && forceUpdate({ inst });
 				return subscribe$1(function() {
 					checkIfSnapshotChanged(inst) && forceUpdate({ inst });
@@ -41979,7 +42212,7 @@ var require_use_sync_external_store_shim_development = /* @__PURE__ */ __commonJ
 			return getSnapshot();
 		}
 		"undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-		var React$2 = require_react(), objectIs = "function" === typeof Object.is ? Object.is : is, useState$17 = React$2.useState, useEffect$16 = React$2.useEffect, useLayoutEffect$1 = React$2.useLayoutEffect, useDebugValue = React$2.useDebugValue, didWarnOld18Alpha = !1, didWarnUncachedGetSnapshot = !1, shim = "undefined" === typeof window || "undefined" === typeof window.document || "undefined" === typeof window.document.createElement ? useSyncExternalStore$1 : useSyncExternalStore$2;
+		var React$2 = require_react(), objectIs = "function" === typeof Object.is ? Object.is : is, useState$18 = React$2.useState, useEffect$17 = React$2.useEffect, useLayoutEffect$1 = React$2.useLayoutEffect, useDebugValue = React$2.useDebugValue, didWarnOld18Alpha = !1, didWarnUncachedGetSnapshot = !1, shim = "undefined" === typeof window || "undefined" === typeof window.document || "undefined" === typeof window.document.createElement ? useSyncExternalStore$1 : useSyncExternalStore$2;
 		exports.useSyncExternalStore = void 0 !== React$2.useSyncExternalStore ? React$2.useSyncExternalStore : shim;
 		"undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(Error());
 	})();
@@ -42944,6 +43177,10 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrowserRouter, {
 				element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Login, {})
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
+				path: "/reset-password",
+				element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ResetPassword, {})
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
 				element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RequireAuth, {}),
 				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Route, {
 					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Layout, {}),
@@ -43009,4 +43246,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrowserRouter, {
 var App_default = App;
 (0, import_client.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime.jsx)(App_default, {}));
 
-//# sourceMappingURL=index-2f2WDlLi.js.map
+//# sourceMappingURL=index-CNKjE1Nv.js.map
