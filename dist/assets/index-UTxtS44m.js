@@ -32425,7 +32425,7 @@ var calculateOccupancy = (current, initial) => {
 const getContainers$1 = async () => {
 	const { data, error } = await supabase.from("containers").select(`
       *,
-      customers (name)
+      customers:customers!containers_consignee_id_fkey (name)
     `).order("created_at", { ascending: false });
 	if (error) throw error;
 	return data.map(mapContainerFromDB);
@@ -32433,7 +32433,7 @@ const getContainers$1 = async () => {
 const getContainer = async (id) => {
 	const { data: containerData, error: containerError } = await supabase.from("containers").select(`
       *,
-      customers (name, id)
+      customers:customers!containers_consignee_id_fkey (name, id)
     `).or(`id.eq.${id},container_number.eq.${id}`).single();
 	if (containerError) throw containerError;
 	const { data: items } = await supabase.from("container_items").select("*").eq("container_id", containerData.id);
@@ -42855,4 +42855,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrowserRouter, {
 var App_default = App;
 (0, import_client.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime.jsx)(App_default, {}));
 
-//# sourceMappingURL=index-0yhX5X34.js.map
+//# sourceMappingURL=index-UTxtS44m.js.map

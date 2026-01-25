@@ -30,12 +30,14 @@ const calculateOccupancy = (current: number, initial: number) => {
 }
 
 export const getContainers = async (): Promise<Container[]> => {
+  // Explicitly specify the foreign key relationship to avoid ambiguity (PGRST201)
+  // We prioritize the consignee as the main customer relationship for display
   const { data, error } = await supabase
     .from('containers')
     .select(
       `
       *,
-      customers (name)
+      customers:customers!containers_consignee_id_fkey (name)
     `,
     )
     .order('created_at', { ascending: false })
@@ -46,12 +48,13 @@ export const getContainers = async (): Promise<Container[]> => {
 }
 
 export const getContainer = async (id: string): Promise<Container> => {
+  // Explicitly specify the foreign key relationship to avoid ambiguity (PGRST201)
   const { data: containerData, error: containerError } = await supabase
     .from('containers')
     .select(
       `
       *,
-      customers (name, id)
+      customers:customers!containers_consignee_id_fkey (name, id)
     `,
     )
     .or(`id.eq.${id},container_number.eq.${id}`)
