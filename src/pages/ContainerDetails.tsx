@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getContainer, getInventory, getEvents } from '@/lib/mock-service'
+import { getContainer, getInventory, getEvents } from '@/services/container'
 import {
   Container,
   InventoryItem,
@@ -48,7 +48,7 @@ export default function ContainerDetails() {
     try {
       setLoading(true)
       const containerData = await getContainer(id)
-      setContainer({ ...containerData }) // Force new reference
+      setContainer({ ...containerData })
 
       const [inventoryData, eventsData] = await Promise.all([
         getInventory(containerData.id),
@@ -56,9 +56,7 @@ export default function ContainerDetails() {
       ])
 
       setInventory(inventoryData)
-      setEvents(
-        eventsData.filter((e) => e.container_code === containerData.codigo),
-      )
+      setEvents(eventsData.filter((e) => e.container_id === containerData.id))
     } catch (error) {
       console.error(error)
     } finally {
@@ -73,7 +71,6 @@ export default function ContainerDetails() {
   if (loading) return <div className="p-8">Carregando detalhes...</div>
   if (!container) return <div className="p-8">Container não encontrado.</div>
 
-  // Metrics Logic based on Active Strategy
   const strategy = container.active_strategy || 'VOLUME'
 
   let currentMetric = 0
@@ -85,24 +82,21 @@ export default function ContainerDetails() {
 
   if (strategy === 'VOLUME') {
     currentMetric = container.total_volume_m3
-    totalMetric = container.initial_capacity_m3 || 67.7
+    totalMetric = container.initial_capacity_m3
     metricLabel = 'Volume Ocupado'
     metricUnit = 'm³'
     metricIcon = <Cuboid className="h-4 w-4" />
     originalLabel = 'Capacidade Total'
   } else if (strategy === 'WEIGHT') {
-    currentMetric = container.total_net_weight_kg || 0
-    totalMetric =
-      container.initial_total_net_weight_kg ||
-      container.max_weight_capacity ||
-      28500
+    currentMetric = container.total_net_weight_kg
+    totalMetric = container.initial_total_net_weight_kg
     metricLabel = 'Peso Líquido Atual'
     metricUnit = 'kg'
     metricIcon = <Scale className="h-4 w-4" />
     originalLabel = 'Peso Original (Packing List)'
   } else {
-    currentMetric = container.total_quantity || 0
-    totalMetric = container.initial_quantity || 1
+    currentMetric = container.total_quantity
+    totalMetric = container.initial_quantity
     metricLabel = 'Itens Restantes'
     metricUnit = 'und'
     metricIcon = <Package className="h-4 w-4" />
@@ -166,7 +160,6 @@ export default function ContainerDetails() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
-        {/* BL Association Card */}
         {container.bl_id && (
           <Card className="bg-slate-50 border-blue-100">
             <CardContent className="p-4 flex items-center justify-between">
@@ -194,7 +187,6 @@ export default function ContainerDetails() {
           </Card>
         )}
 
-        {/* Seal Info Card */}
         <Card className="bg-slate-50 border-slate-200">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 bg-slate-200 rounded-lg">
@@ -314,7 +306,7 @@ export default function ContainerDetails() {
                             : '-'}
                         </TableCell>
                         <TableCell className="text-right">
-                          {item.net_weight_kg?.toLocaleString() || '-'}
+                          {item.unit_net_weight_kg?.toLocaleString() || '-'}
                         </TableCell>
                       </TableRow>
                     ))

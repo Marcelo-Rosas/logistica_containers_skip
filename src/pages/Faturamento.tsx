@@ -29,7 +29,7 @@ import {
   getInvoices,
   simulateBilling,
   generateMonthlyInvoices,
-} from '@/lib/mock-service'
+} from '@/services/billing'
 import { Invoice } from '@/lib/types'
 import {
   Download,
@@ -46,14 +46,12 @@ import {
 import { toast } from 'sonner'
 import { useSearchParams } from 'react-router-dom'
 import { NextMeasurementCard } from '@/components/NextMeasurementCard'
-import { cn } from '@/lib/utils'
 
 export default function Faturamento() {
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [loading, setLoading] = useState(true)
   const [searchParams] = useSearchParams()
 
-  // Simulation State
   const [simulationOpen, setSimulationOpen] = useState(false)
   const [simulatedInvoices, setSimulatedInvoices] = useState<Invoice[]>([])
   const [simulating, setSimulating] = useState(false)
@@ -81,8 +79,6 @@ export default function Faturamento() {
     setSimulationOpen(true)
     setSimulating(true)
     try {
-      // Small delay to show loading state
-      await new Promise((resolve) => setTimeout(resolve, 800))
       const data = await simulateBilling()
       setSimulatedInvoices(data)
     } catch (e) {
@@ -94,7 +90,6 @@ export default function Faturamento() {
 
   const handleGenerateInvoices = async () => {
     if (simulatedInvoices.length === 0) return
-
     setGenerating(true)
     try {
       await generateMonthlyInvoices(simulatedInvoices)
@@ -133,147 +128,11 @@ export default function Faturamento() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Next Measurement Card - Reused */}
         <div className="md:col-span-1">
           <NextMeasurementCard />
         </div>
-
-        {/* Stats */}
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle>Resumo Financeiro (Mês Atual)</CardTitle>
-            <CardDescription>
-              Faturamento projetado vs realizado
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
-              <span className="text-sm text-emerald-600 font-medium">
-                Pago (Realizado)
-              </span>
-              <div className="text-2xl font-bold text-emerald-700 mt-1">
-                {formatCurrency(
-                  invoices
-                    .filter((i) => i.status === 'Paid')
-                    .reduce((acc, curr) => acc + curr.total_amount, 0),
-                )}
-              </div>
-            </div>
-            <div className="p-4 bg-amber-50 rounded-lg border border-amber-100">
-              <span className="text-sm text-amber-600 font-medium">
-                Pendente (Aberto)
-              </span>
-              <div className="text-2xl font-bold text-amber-700 mt-1">
-                {formatCurrency(
-                  invoices
-                    .filter(
-                      (i) => i.status === 'Sent' || i.status === 'Overdue',
-                    )
-                    .reduce((acc, curr) => acc + curr.total_amount, 0),
-                )}
-              </div>
-            </div>
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
-              <span className="text-sm text-blue-600 font-medium">
-                Projetado (Simulação)
-              </span>
-              <div className="text-2xl font-bold text-blue-700 mt-1">
-                {formatCurrency(
-                  simulatedInvoices.reduce(
-                    (acc, curr) => acc + curr.total_amount,
-                    0,
-                  ) || 0,
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Histórico de Faturas</CardTitle>
-          <CardDescription>
-            Todas as faturas geradas pelo sistema.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Fatura #</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Competência</TableHead>
-                <TableHead>Vencimento</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-                  </TableCell>
-                </TableRow>
-              ) : invoices.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    className="text-center py-8 text-muted-foreground"
-                  >
-                    Nenhuma fatura encontrada.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                invoices.map((inv) => (
-                  <TableRow key={inv.id}>
-                    <TableCell className="font-mono">{inv.id}</TableCell>
-                    <TableCell>{inv.client_name}</TableCell>
-                    <TableCell>
-                      {inv.month}/{inv.year}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(inv.due_date).toLocaleDateString('pt-BR')}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(inv.total_amount)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={
-                          inv.status === 'Paid'
-                            ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                            : inv.status === 'Overdue'
-                              ? 'bg-red-100 text-red-800 border-red-200'
-                              : 'bg-blue-100 text-blue-800 border-blue-200'
-                        }
-                      >
-                        {inv.status === 'Paid'
-                          ? 'Pago'
-                          : inv.status === 'Overdue'
-                            ? 'Atrasado'
-                            : inv.status === 'Sent'
-                              ? 'Enviado'
-                              : 'Rascunho'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm">
-                        <Download className="h-4 w-4 mr-1" /> PDF
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Simulation Dialog */}
       <Dialog open={simulationOpen} onOpenChange={setSimulationOpen}>
         <DialogContent className="sm:max-w-[700px]">
           <DialogHeader>
@@ -282,8 +141,7 @@ export default function Faturamento() {
               Simulação de Faturamento
             </DialogTitle>
             <DialogDescription>
-              Prévia dos custos calculados (Pro-rata ou Snapshot) para o próximo
-              dia 25.
+              Prévia dos custos calculados (Pro-rata ou Snapshot).
             </DialogDescription>
           </DialogHeader>
 
@@ -299,9 +157,6 @@ export default function Faturamento() {
               <div className="flex flex-col items-center justify-center py-8 text-center space-y-2">
                 <AlertTriangle className="h-8 w-8 text-amber-500" />
                 <p className="font-medium">Nenhum custo pendente encontrado.</p>
-                <p className="text-sm text-muted-foreground">
-                  Não há alocações ativas ou eventos de saída não faturados.
-                </p>
               </div>
             ) : (
               <ScrollArea className="h-[400px] pr-4">
@@ -318,10 +173,6 @@ export default function Faturamento() {
                         <div className="text-right">
                           <span className="block font-bold text-primary">
                             {formatCurrency(inv.total_amount)}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            Vencimento:{' '}
-                            {new Date(inv.due_date).toLocaleDateString('pt-BR')}
                           </span>
                         </div>
                       </div>
@@ -359,23 +210,7 @@ export default function Faturamento() {
                               </span>
                             </div>
 
-                            {/* Details based on calculation method */}
                             <div className="grid grid-cols-2 gap-2 mt-2 text-slate-500 bg-slate-50 p-2 rounded">
-                              {item.calculation_method === 'pro_rata' && (
-                                <>
-                                  <div className="flex items-center gap-1">
-                                    <Info className="h-3 w-3" />
-                                    <span>Método: Pro-rata (Dias)</span>
-                                  </div>
-                                  <div>
-                                    Dias Cobrados:{' '}
-                                    <span className="text-slate-900 font-medium">
-                                      {item.days_pro_rated}/30
-                                    </span>
-                                  </div>
-                                </>
-                              )}
-
                               {item.calculation_method ===
                                 'volume_snapshot' && (
                                 <>
@@ -396,15 +231,6 @@ export default function Faturamento() {
                                       {item.occupancy_percentage}%
                                     </span>
                                   </div>
-                                  {item.savings && item.savings > 0 && (
-                                    <div className="col-span-2 mt-1 text-emerald-600 font-medium flex items-center gap-1">
-                                      <TrendingDown className="h-3 w-3" />
-                                      <span>
-                                        Economia (vs Full):{' '}
-                                        {formatCurrency(item.savings)}
-                                      </span>
-                                    </div>
-                                  )}
                                 </>
                               )}
                             </div>
@@ -417,30 +243,15 @@ export default function Faturamento() {
               </ScrollArea>
             )}
           </div>
-
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setSimulationOpen(false)}
-              disabled={generating}
-            >
+            <Button variant="outline" onClick={() => setSimulationOpen(false)}>
               Cancelar
             </Button>
             <Button
               onClick={handleGenerateInvoices}
-              disabled={
-                generating || simulating || simulatedInvoices.length === 0
-              }
+              disabled={generating || simulatedInvoices.length === 0}
             >
-              {generating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Gerando...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="mr-2 h-4 w-4" /> Gerar Faturas Reais
-                </>
-              )}
+              {generating ? 'Gerando...' : 'Gerar Faturas'}
             </Button>
           </DialogFooter>
         </DialogContent>

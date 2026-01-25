@@ -3,8 +3,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CalendarClock, ArrowRight, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { cn } from '@/lib/utils'
-import { getAllocations } from '@/lib/mock-service'
+import { getContainers } from '@/services/container'
 
 export function NextMeasurementCard() {
   const navigate = useNavigate()
@@ -14,27 +13,19 @@ export function NextMeasurementCard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // 1. Calculate Next Measurement Date (25th of month)
     const today = new Date()
     const currentYear = today.getFullYear()
     const currentMonth = today.getMonth()
-
     let nextDate = new Date(currentYear, currentMonth, 25)
-
-    // If today is past the 25th, move to next month
     if (today > nextDate) {
       nextDate = new Date(currentYear, currentMonth + 1, 25)
     }
-
     setMeasurementDate(nextDate)
-
-    // 2. Calculate Difference in Days
     const diffTime = Math.abs(nextDate.getTime() - today.getTime())
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
     setDaysRemaining(diffDays)
 
-    // 3. Load Active Count
-    getAllocations()
+    getContainers()
       .then((data) => {
         const active = data.filter((a) => a.status === 'Ativo').length
         setActiveCount(active)
@@ -79,10 +70,6 @@ export function NextMeasurementCard() {
         </div>
 
         <div className="mt-4 pt-4 border-t border-white/10 flex justify-between items-center backdrop-blur-sm rounded-lg">
-          <div className="text-xs text-white/80">
-            <span className="font-semibold text-emerald-300">Automático</span> •{' '}
-            Ciclo Mensal
-          </div>
           <Button
             variant="secondary"
             size="sm"
