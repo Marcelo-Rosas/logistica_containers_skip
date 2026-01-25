@@ -1,0 +1,131 @@
+import { useState } from 'react'
+import { useAuth } from '@/hooks/use-auth'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { toast } from 'sonner'
+import { Loader2, Lock, Mail, Package } from 'lucide-react'
+
+export default function Login() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { signIn } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  const from = location.state?.from?.pathname || '/'
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email || !password) {
+      toast.error('Preencha email e senha')
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      const { error } = await signIn(email, password)
+      if (error) {
+        if (error.message.includes('Invalid login credentials')) {
+          toast.error('Email ou senha incorretos')
+        } else {
+          toast.error(`Erro: ${error.message}`)
+        }
+      } else {
+        toast.success('Login realizado com sucesso!')
+        navigate(from, { replace: true })
+      }
+    } catch (error) {
+      toast.error('Ocorreu um erro inesperado')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
+      <div className="w-full max-w-md animate-fade-in-up">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground mb-4 shadow-lg">
+            <Package className="h-6 w-6" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Logística Container
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Gerenciamento inteligente de frota e BLs
+          </p>
+        </div>
+
+        <Card className="border-slate-200 shadow-xl">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-xl">Acesse sua conta</CardTitle>
+            <CardDescription>
+              Entre com suas credenciais para continuar
+            </CardDescription>
+          </CardHeader>
+          <form onSubmit={handleLogin}>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="nome@empresa.com"
+                    className="pl-9"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Senha</Label>
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type="password"
+                    className="pl-9"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button className="w-full" type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Entrando...
+                  </>
+                ) : (
+                  'Entrar'
+                )}
+              </Button>
+            </CardFooter>
+          </form>
+        </Card>
+        <p className="mt-4 text-center text-xs text-muted-foreground">
+          &copy; 2026 Logística Container Inc. Todos os direitos reservados.
+        </p>
+      </div>
+    </div>
+  )
+}

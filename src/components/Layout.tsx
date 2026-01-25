@@ -1,5 +1,5 @@
 /* Updated Layout Component - Wraps the application with Sidebar and Header */
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AppSidebar } from '@/components/AppSidebar'
 import {
   SidebarProvider,
@@ -15,7 +15,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
-import { Bell, Search } from 'lucide-react'
+import { Bell, Search, LogOut } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -27,9 +27,22 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { useAuth } from '@/hooks/use-auth'
+import { toast } from 'sonner'
 
 export default function Layout() {
   const location = useLocation()
+  const { user, signOut } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = async () => {
+    try {
+      await signOut()
+      navigate('/login')
+    } catch (error) {
+      toast.error('Erro ao sair')
+    }
+  }
 
   // Helper to generate breadcrumbs
   const getBreadcrumbs = () => {
@@ -46,6 +59,9 @@ export default function Layout() {
   }
 
   const breadcrumbs = getBreadcrumbs()
+  const userInitials = user?.email
+    ? user.email.substring(0, 2).toUpperCase()
+    : 'U'
 
   return (
     <SidebarProvider>
@@ -96,16 +112,20 @@ export default function Layout() {
                   className="relative h-8 w-8 rounded-full"
                 >
                   <Avatar className="h-8 w-8">
-                    <AvatarFallback>AD</AvatarFallback>
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                      {userInitials}
+                    </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">Admin</p>
+                    <p className="text-sm font-medium leading-none">
+                      {user?.email?.split('@')[0] || 'Usuário'}
+                    </p>
                     <p className="text-xs leading-none text-muted-foreground">
-                      admin@logistica.com
+                      {user?.email || 'user@example.com'}
                     </p>
                   </div>
                 </DropdownMenuLabel>
@@ -113,7 +133,10 @@ export default function Layout() {
                 <DropdownMenuItem>Perfil</DropdownMenuItem>
                 <DropdownMenuItem>Configurações</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Sair</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sair
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

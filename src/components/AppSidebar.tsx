@@ -23,13 +23,26 @@ import {
   FileText,
   AlertTriangle,
 } from 'lucide-react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/hooks/use-auth'
+import { toast } from 'sonner'
 
 export function AppSidebar() {
   const location = useLocation()
+  const navigate = useNavigate()
   const { state } = useSidebar()
+  const { signOut } = useAuth()
   const collapsed = state === 'collapsed'
+
+  const handleLogout = async () => {
+    try {
+      await signOut()
+      navigate('/login')
+    } catch (error) {
+      toast.error('Erro ao sair')
+    }
+  }
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
@@ -37,7 +50,6 @@ export function AppSidebar() {
     { icon: Users, label: 'Clientes', path: '/clientes' },
     { icon: Box, label: 'Containers', path: '/containers' },
     { icon: AlertTriangle, label: 'Divergências', path: '/divergencias' },
-    // "Alocações" removed as per UI Streamlining requirement
     { icon: History, label: 'Movimentações', path: '/eventos' },
     { icon: Receipt, label: 'Faturamento', path: '/faturamento' },
     { icon: BarChart3, label: 'Relatórios', path: '/relatorios' },
@@ -82,7 +94,7 @@ export function AppSidebar() {
       <SidebarFooter className="border-t p-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Sair">
+            <SidebarMenuButton tooltip="Sair" onClick={handleLogout}>
               <LogOut className="h-4 w-4" />
               <span>Sair</span>
             </SidebarMenuButton>

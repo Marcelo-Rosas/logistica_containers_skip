@@ -16310,6 +16310,30 @@ import_react.memo(DataRoutes);
 function DataRoutes({ routes, future, state, onError }) {
 	return useRoutesImpl(routes, void 0, state, onError, future);
 }
+function Navigate({ to, replace: replace2, state, relative }) {
+	invariant(useInRouterContext(), `<Navigate> may be used only in the context of a <Router> component.`);
+	let { static: isStatic } = import_react.useContext(NavigationContext);
+	warning(!isStatic, `<Navigate> must not be used on the initial render in a <StaticRouter>. This is a no-op, but you should modify your code so the <Navigate> is only ever rendered in response to some user interaction or state change.`);
+	let { matches } = import_react.useContext(RouteContext);
+	let { pathname: locationPathname } = useLocation();
+	let navigate = useNavigate();
+	let path = resolveTo(to, getResolveToMatches(matches), locationPathname, relative === "path");
+	let jsonPath = JSON.stringify(path);
+	import_react.useEffect(() => {
+		navigate(JSON.parse(jsonPath), {
+			replace: replace2,
+			state,
+			relative
+		});
+	}, [
+		navigate,
+		jsonPath,
+		relative,
+		replace2,
+		state
+	]);
+	return null;
+}
 function Outlet(props) {
 	return useOutlet(props.context);
 }
@@ -19342,6 +19366,18 @@ var LoaderCircle = createLucideIcon("loader-circle", [["path", {
 	d: "M21 12a9 9 0 1 1-6.219-8.56",
 	key: "13zald"
 }]]);
+var Lock = createLucideIcon("lock", [["rect", {
+	width: "18",
+	height: "11",
+	x: "3",
+	y: "11",
+	rx: "2",
+	ry: "2",
+	key: "1w4ew1"
+}], ["path", {
+	d: "M7 11V7a5 5 0 0 1 10 0v4",
+	key: "fwvmzm"
+}]]);
 var LogIn = createLucideIcon("log-in", [
 	["path", {
 		d: "m10 17 5-5-5-5",
@@ -19370,6 +19406,17 @@ var LogOut = createLucideIcon("log-out", [
 		key: "1uf3rs"
 	}]
 ]);
+var Mail = createLucideIcon("mail", [["path", {
+	d: "m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7",
+	key: "132q7q"
+}], ["rect", {
+	x: "2",
+	y: "4",
+	width: "20",
+	height: "16",
+	rx: "2",
+	key: "izxlao"
+}]]);
 var PackageCheck = createLucideIcon("package-check", [
 	["path", {
 		d: "m16 16 2 2 4-4",
@@ -41024,6 +41071,171 @@ var NotFound = () => {
 	});
 };
 var NotFound_default = NotFound;
+var AuthContext = (0, import_react.createContext)(void 0);
+const useAuth = () => {
+	const context = (0, import_react.useContext)(AuthContext);
+	if (context === void 0) throw new Error("useAuth must be used within an AuthProvider");
+	return context;
+};
+const AuthProvider = ({ children }) => {
+	const [user, setUser] = (0, import_react.useState)(null);
+	const [session, setSession] = (0, import_react.useState)(null);
+	const [loading, setLoading] = (0, import_react.useState)(true);
+	(0, import_react.useEffect)(() => {
+		supabase.auth.getSession().then(({ data: { session: session$1 } }) => {
+			setSession(session$1);
+			setUser(session$1?.user ?? null);
+			setLoading(false);
+		});
+		const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session$1) => {
+			setSession(session$1);
+			setUser(session$1?.user ?? null);
+			setLoading(false);
+		});
+		return () => subscription.unsubscribe();
+	}, []);
+	const signIn = async (email, password) => {
+		const { error } = await supabase.auth.signInWithPassword({
+			email,
+			password
+		});
+		return { error };
+	};
+	const signOut = async () => {
+		const { error } = await supabase.auth.signOut();
+		if (!error) {
+			setUser(null);
+			setSession(null);
+		}
+		return { error };
+	};
+	const value = {
+		user,
+		session,
+		signIn,
+		signOut,
+		loading
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AuthContext.Provider, {
+		value,
+		children
+	});
+};
+function Login() {
+	const [email, setEmail] = (0, import_react.useState)("");
+	const [password, setPassword] = (0, import_react.useState)("");
+	const [isSubmitting, setIsSubmitting] = (0, import_react.useState)(false);
+	const { signIn } = useAuth();
+	const navigate = useNavigate();
+	const from = useLocation().state?.from?.pathname || "/";
+	const handleLogin = async (e) => {
+		e.preventDefault();
+		if (!email || !password) {
+			toast.error("Preencha email e senha");
+			return;
+		}
+		setIsSubmitting(true);
+		try {
+			const { error } = await signIn(email, password);
+			if (error) if (error.message.includes("Invalid login credentials")) toast.error("Email ou senha incorretos");
+			else toast.error(`Erro: ${error.message}`);
+			else {
+				toast.success("Login realizado com sucesso!");
+				navigate(from, { replace: true });
+			}
+		} catch (error) {
+			toast.error("Ocorreu um erro inesperado");
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+		className: "flex min-h-screen items-center justify-center bg-slate-100 p-4",
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "w-full max-w-md animate-fade-in-up",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "mb-6 flex flex-col items-center text-center",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground mb-4 shadow-lg",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Package, { className: "h-6 w-6" })
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+							className: "text-2xl font-bold tracking-tight",
+							children: "Logística Container"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-sm text-muted-foreground",
+							children: "Gerenciamento inteligente de frota e BLs"
+						})
+					]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+					className: "border-slate-200 shadow-xl",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
+						className: "space-y-1",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
+							className: "text-xl",
+							children: "Acesse sua conta"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, { children: "Entre com suas credenciais para continuar" })]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
+						onSubmit: handleLogin,
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
+							className: "space-y-4",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "space-y-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+									htmlFor: "email",
+									children: "Email"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "relative",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Mail, { className: "absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+										id: "email",
+										type: "email",
+										placeholder: "nome@empresa.com",
+										className: "pl-9",
+										value: email,
+										onChange: (e) => setEmail(e.target.value),
+										disabled: isSubmitting
+									})]
+								})]
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "space-y-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "flex items-center justify-between",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+										htmlFor: "password",
+										children: "Senha"
+									})
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "relative",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Lock, { className: "absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+										id: "password",
+										type: "password",
+										className: "pl-9",
+										value: password,
+										onChange: (e) => setPassword(e.target.value),
+										disabled: isSubmitting
+									})]
+								})]
+							})]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardFooter, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							className: "w-full",
+							type: "submit",
+							disabled: isSubmitting,
+							children: isSubmitting ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "mr-2 h-4 w-4 animate-spin" }), "Entrando..."] }) : "Entrar"
+						}) })]
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "mt-4 text-center text-xs text-muted-foreground",
+					children: "© 2026 Logística Container Inc. Todos os direitos reservados."
+				})
+			]
+		})
+	});
+}
 var MOBILE_BREAKPOINT = 768;
 function useIsMobile() {
 	const [isMobile, setIsMobile] = import_react.useState(void 0);
@@ -41490,7 +41702,18 @@ var SidebarMenuSubButton = import_react.forwardRef(({ asChild = false, size: siz
 SidebarMenuSubButton.displayName = "SidebarMenuSubButton";
 function AppSidebar() {
 	const location = useLocation();
+	const navigate = useNavigate();
 	const { state } = useSidebar();
+	const { signOut } = useAuth();
+	const collapsed = state === "collapsed";
+	const handleLogout = async () => {
+		try {
+			await signOut();
+			navigate("/login");
+		} catch (error) {
+			toast.error("Erro ao sair");
+		}
+	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sidebar, {
 		collapsible: "icon",
 		children: [
@@ -41498,7 +41721,7 @@ function AppSidebar() {
 				className: "flex items-center justify-center py-4 border-b",
 				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "flex items-center gap-2 font-bold text-xl text-primary",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Package, { className: "h-6 w-6" }), !(state === "collapsed") && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Logística" })]
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Package, { className: "h-6 w-6" }), !collapsed && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Logística" })]
 				})
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarContent, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarMenu, {
@@ -41564,6 +41787,7 @@ function AppSidebar() {
 				className: "border-t p-2",
 				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarMenu, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarMenuItem, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SidebarMenuButton, {
 					tooltip: "Sair",
+					onClick: handleLogout,
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LogOut, { className: "h-4 w-4" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Sair" })]
 				}) }) })
 			}),
@@ -41646,7 +41870,7 @@ var require_use_sync_external_store_shim_development = /* @__PURE__ */ __commonJ
 				var cachedValue = getSnapshot();
 				objectIs(value, cachedValue) || (console.error("The result of getSnapshot should be cached to avoid an infinite loop"), didWarnUncachedGetSnapshot = !0);
 			}
-			cachedValue = useState$15({ inst: {
+			cachedValue = useState$17({ inst: {
 				value,
 				getSnapshot
 			} });
@@ -41660,7 +41884,7 @@ var require_use_sync_external_store_shim_development = /* @__PURE__ */ __commonJ
 				value,
 				getSnapshot
 			]);
-			useEffect$15(function() {
+			useEffect$16(function() {
 				checkIfSnapshotChanged(inst) && forceUpdate({ inst });
 				return subscribe$1(function() {
 					checkIfSnapshotChanged(inst) && forceUpdate({ inst });
@@ -41683,7 +41907,7 @@ var require_use_sync_external_store_shim_development = /* @__PURE__ */ __commonJ
 			return getSnapshot();
 		}
 		"undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-		var React$2 = require_react(), objectIs = "function" === typeof Object.is ? Object.is : is, useState$15 = React$2.useState, useEffect$15 = React$2.useEffect, useLayoutEffect$1 = React$2.useLayoutEffect, useDebugValue = React$2.useDebugValue, didWarnOld18Alpha = !1, didWarnUncachedGetSnapshot = !1, shim = "undefined" === typeof window || "undefined" === typeof window.document || "undefined" === typeof window.document.createElement ? useSyncExternalStore$1 : useSyncExternalStore$2;
+		var React$2 = require_react(), objectIs = "function" === typeof Object.is ? Object.is : is, useState$17 = React$2.useState, useEffect$16 = React$2.useEffect, useLayoutEffect$1 = React$2.useLayoutEffect, useDebugValue = React$2.useDebugValue, didWarnOld18Alpha = !1, didWarnUncachedGetSnapshot = !1, shim = "undefined" === typeof window || "undefined" === typeof window.document || "undefined" === typeof window.document.createElement ? useSyncExternalStore$1 : useSyncExternalStore$2;
 		exports.useSyncExternalStore = void 0 !== React$2.useSyncExternalStore ? React$2.useSyncExternalStore : shim;
 		"undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(Error());
 	})();
@@ -41813,6 +42037,16 @@ var AvatarFallback = import_react.forwardRef(({ className, ...props }, ref) => /
 AvatarFallback.displayName = Fallback.displayName;
 function Layout() {
 	const location = useLocation();
+	const { user, signOut } = useAuth();
+	const navigate = useNavigate();
+	const handleLogout = async () => {
+		try {
+			await signOut();
+			navigate("/login");
+		} catch (error) {
+			toast.error("Erro ao sair");
+		}
+	};
 	const getBreadcrumbs = () => {
 		const path = location.pathname.split("/").filter(Boolean);
 		if (path.length === 0) return [{
@@ -41834,6 +42068,7 @@ function Layout() {
 		return crumbs;
 	};
 	const breadcrumbs = getBreadcrumbs();
+	const userInitials = user?.email ? user.email.substring(0, 2).toUpperCase() : "U";
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SidebarProvider, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AppSidebar, {}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SidebarInset, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", {
 		className: "flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 sticky top-0 z-10",
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -41878,7 +42113,10 @@ function Layout() {
 						className: "relative h-8 w-8 rounded-full",
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Avatar, {
 							className: "h-8 w-8",
-							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarFallback, { children: "AD" })
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarFallback, {
+								className: "bg-primary text-primary-foreground",
+								children: userInitials
+							})
 						})
 					})
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuContent, {
@@ -41892,10 +42130,10 @@ function Layout() {
 								className: "flex flex-col space-y-1",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 									className: "text-sm font-medium leading-none",
-									children: "Admin"
+									children: user?.email?.split("@")[0] || "Usuário"
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 									className: "text-xs leading-none text-muted-foreground",
-									children: "admin@logistica.com"
+									children: user?.email || "user@example.com"
 								})]
 							})
 						}),
@@ -41903,7 +42141,10 @@ function Layout() {
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuItem, { children: "Perfil" }),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuItem, { children: "Configurações" }),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuSeparator, {}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuItem, { children: "Sair" })
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuItem, {
+							onClick: handleLogout,
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LogOut, { className: "mr-2 h-4 w-4" }), "Sair"]
+						})
 					]
 				})] })
 			]
@@ -42597,73 +42838,103 @@ function Divergences() {
 		]
 	});
 }
+const RequireAuth = () => {
+	const { user, loading } = useAuth();
+	const location = useLocation();
+	if (loading) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+		className: "flex h-screen w-full items-center justify-center bg-slate-50",
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "flex flex-col items-center gap-4",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "h-10 w-10 animate-spin text-primary" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "text-sm text-muted-foreground animate-pulse",
+				children: "Carregando sessão..."
+			})]
+		})
+	});
+	if (!user) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Navigate, {
+		to: "/login",
+		state: { from: location },
+		replace: true
+	});
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Outlet, {});
+};
 var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrowserRouter, {
 	future: {
 		v7_startTransition: false,
 		v7_relativeSplatPath: false
 	},
-	children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TooltipProvider, { children: [
+	children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AuthProvider, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TooltipProvider, { children: [
 		/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Toaster, {}),
 		/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Toaster$1, {}),
-		/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Routes, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Route, {
-			element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Layout, {}),
-			children: [
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
-					path: "/",
-					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Index, {})
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
-					path: "/bl",
-					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BLManagement, {})
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
-					path: "/bl/cadastrar",
-					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BLRegister, {})
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
-					path: "/bl/:id",
-					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BLDetails, {})
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
-					path: "/divergencias",
-					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Divergences, {})
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
-					path: "/clientes",
-					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Clientes, {})
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
-					path: "/containers",
-					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Containers, {})
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
-					path: "/containers/:id",
-					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ContainerDetails, {})
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
-					path: "/eventos",
-					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EventsPage, {})
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
-					path: "/faturamento",
-					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Faturamento, {})
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
-					path: "/relatorios",
-					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Relatorios, {})
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
-					path: "/configuracoes",
-					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Configuracoes, {})
+		/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Routes, { children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
+				path: "/login",
+				element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Login, {})
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
+				element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RequireAuth, {}),
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Route, {
+					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Layout, {}),
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
+							path: "/",
+							element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Index, {})
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
+							path: "/bl",
+							element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BLManagement, {})
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
+							path: "/bl/cadastrar",
+							element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BLRegister, {})
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
+							path: "/bl/:id",
+							element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BLDetails, {})
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
+							path: "/divergencias",
+							element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Divergences, {})
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
+							path: "/clientes",
+							element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Clientes, {})
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
+							path: "/containers",
+							element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Containers, {})
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
+							path: "/containers/:id",
+							element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ContainerDetails, {})
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
+							path: "/eventos",
+							element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EventsPage, {})
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
+							path: "/faturamento",
+							element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Faturamento, {})
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
+							path: "/relatorios",
+							element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Relatorios, {})
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
+							path: "/configuracoes",
+							element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Configuracoes, {})
+						})
+					]
 				})
-			]
-		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
-			path: "*",
-			element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(NotFound_default, {})
-		})] })
-	] })
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
+				path: "*",
+				element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(NotFound_default, {})
+			})
+		] })
+	] }) })
 });
 var App_default = App;
 (0, import_client.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime.jsx)(App_default, {}));
 
-//# sourceMappingURL=index-BKWQMAQp.js.map
+//# sourceMappingURL=index-C0SR6JBi.js.map

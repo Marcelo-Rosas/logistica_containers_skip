@@ -792,6 +792,9 @@ section[aria-label='Notifications alt+T'] {
 .mb-4{
   margin-bottom: 1rem;
 }
+.mb-6{
+  margin-bottom: 1.5rem;
+}
 .mb-8{
   margin-bottom: 2rem;
 }
@@ -935,6 +938,9 @@ section[aria-label='Notifications alt+T'] {
 .h-px{
   height: 1px;
 }
+.h-screen{
+  height: 100vh;
+}
 .h-svh{
   height: 100svh;
 }
@@ -982,6 +988,9 @@ section[aria-label='Notifications alt+T'] {
 }
 .w-11{
   width: 2.75rem;
+}
+.w-12{
+  width: 3rem;
 }
 .w-16{
   width: 4rem;
