@@ -11,957 +11,1018 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
-      audit_log: {
+      audit_logs: {
         Row: {
           action: string
-          changed_fields: string[] | null
-          created_at: string | null
+          changes: Json | null
+          description: string | null
+          entity_id: string | null
+          entity_type: string
           id: string
           ip_address: unknown
-          new_data: Json | null
-          old_data: Json | null
-          record_id: string
-          table_name: string
+          organization_id: string
+          performed_at: string
           user_agent: string | null
           user_id: string | null
         }
         Insert: {
           action: string
-          changed_fields?: string[] | null
-          created_at?: string | null
+          changes?: Json | null
+          description?: string | null
+          entity_id?: string | null
+          entity_type: string
           id?: string
           ip_address?: unknown
-          new_data?: Json | null
-          old_data?: Json | null
-          record_id: string
-          table_name: string
+          organization_id: string
+          performed_at?: string
           user_agent?: string | null
           user_id?: string | null
         }
         Update: {
           action?: string
-          changed_fields?: string[] | null
-          created_at?: string | null
+          changes?: Json | null
+          description?: string | null
+          entity_id?: string | null
+          entity_type?: string
           id?: string
           ip_address?: unknown
-          new_data?: Json | null
-          old_data?: Json | null
-          record_id?: string
-          table_name?: string
+          organization_id?: string
+          performed_at?: string
           user_agent?: string | null
           user_id?: string | null
         }
-        Relationships: []
-      }
-      billing_lines: {
-        Row: {
-          allocated_cost: number | null
-          allocated_cost_brl: number
-          base_cost_brl: number
-          billed_at: string | null
-          billing_period_end: string
-          billing_period_start: string
-          client_id: string
-          client_reference: string | null
-          container_code: string
-          container_id: string
-          created_at: string | null
-          created_by: string | null
-          description: string | null
-          id: string
-          initial_quantity: number
-          initial_volume_m3: number | null
-          invoice_date: string | null
-          invoice_number: string | null
-          model_code: string | null
-          notes: string | null
-          paid_at: string | null
-          percent_of_container: number | null
-          product_name: string
-          reference_month: string | null
-          remaining_quantity: number
-          removal_percentage: number
-          removed_quantity: number
-          removed_volume_m3: number | null
-          sku: string
-          snapshot_id: string
-          status: Database["public"]["Enums"]["billing_status"] | null
-          unit_cost_brl: number | null
-          volume_percentage: number | null
-          volume_removed: number | null
-        }
-        Insert: {
-          allocated_cost?: number | null
-          allocated_cost_brl: number
-          base_cost_brl: number
-          billed_at?: string | null
-          billing_period_end: string
-          billing_period_start: string
-          client_id: string
-          client_reference?: string | null
-          container_code: string
-          container_id: string
-          created_at?: string | null
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          initial_quantity: number
-          initial_volume_m3?: number | null
-          invoice_date?: string | null
-          invoice_number?: string | null
-          model_code?: string | null
-          notes?: string | null
-          paid_at?: string | null
-          percent_of_container?: number | null
-          product_name: string
-          reference_month?: string | null
-          remaining_quantity: number
-          removal_percentage: number
-          removed_quantity: number
-          removed_volume_m3?: number | null
-          sku: string
-          snapshot_id: string
-          status?: Database["public"]["Enums"]["billing_status"] | null
-          unit_cost_brl?: number | null
-          volume_percentage?: number | null
-          volume_removed?: number | null
-        }
-        Update: {
-          allocated_cost?: number | null
-          allocated_cost_brl?: number
-          base_cost_brl?: number
-          billed_at?: string | null
-          billing_period_end?: string
-          billing_period_start?: string
-          client_id?: string
-          client_reference?: string | null
-          container_code?: string
-          container_id?: string
-          created_at?: string | null
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          initial_quantity?: number
-          initial_volume_m3?: number | null
-          invoice_date?: string | null
-          invoice_number?: string | null
-          model_code?: string | null
-          notes?: string | null
-          paid_at?: string | null
-          percent_of_container?: number | null
-          product_name?: string
-          reference_month?: string | null
-          remaining_quantity?: number
-          removal_percentage?: number
-          removed_quantity?: number
-          removed_volume_m3?: number | null
-          sku?: string
-          snapshot_id?: string
-          status?: Database["public"]["Enums"]["billing_status"] | null
-          unit_cost_brl?: number | null
-          volume_percentage?: number | null
-          volume_removed?: number | null
-        }
         Relationships: [
           {
-            foreignKeyName: "billing_lines_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "audit_logs_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: "admin_users_view"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "billing_lines_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "billing_lines_container_id_fkey"
+            foreignKeyName: "audit_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      container_items: {
+        Row: {
+          available_quantity: number
+          cbm: number | null
+          container_id: string
+          created_at: string | null
+          damaged_quantity: number | null
+          description: string | null
+          id: string
+          image_url: string | null
+          item_number: number
+          notes: string | null
+          original_quantity: number
+          packaging_type: string | null
+          product_code: string
+          product_id: string | null
+          product_name: string
+          released_quantity: number | null
+          reserved_quantity: number | null
+          total_gross_weight: number | null
+          total_net_weight: number | null
+          unit_gross_weight: number | null
+          unit_net_weight: number | null
+          updated_at: string | null
+          volumes: number | null
+        }
+        Insert: {
+          available_quantity: number
+          cbm?: number | null
+          container_id: string
+          created_at?: string | null
+          damaged_quantity?: number | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          item_number: number
+          notes?: string | null
+          original_quantity: number
+          packaging_type?: string | null
+          product_code: string
+          product_id?: string | null
+          product_name: string
+          released_quantity?: number | null
+          reserved_quantity?: number | null
+          total_gross_weight?: number | null
+          total_net_weight?: number | null
+          unit_gross_weight?: number | null
+          unit_net_weight?: number | null
+          updated_at?: string | null
+          volumes?: number | null
+        }
+        Update: {
+          available_quantity?: number
+          cbm?: number | null
+          container_id?: string
+          created_at?: string | null
+          damaged_quantity?: number | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          item_number?: number
+          notes?: string | null
+          original_quantity?: number
+          packaging_type?: string | null
+          product_code?: string
+          product_id?: string | null
+          product_name?: string
+          released_quantity?: number | null
+          reserved_quantity?: number | null
+          total_gross_weight?: number | null
+          total_net_weight?: number | null
+          unit_gross_weight?: number | null
+          unit_net_weight?: number | null
+          updated_at?: string | null
+          volumes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "container_items_container_id_fkey"
             columns: ["container_id"]
             isOneToOne: false
             referencedRelation: "containers"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "billing_lines_container_id_fkey"
-            columns: ["container_id"]
+            foreignKeyName: "container_items_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: false
-            referencedRelation: "containers_stats_view"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "billing_lines_snapshot_id_fkey"
-            columns: ["snapshot_id"]
-            isOneToOne: false
-            referencedRelation: "snapshots"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
       }
-      client_users: {
+      container_movements: {
         Row: {
-          client_id: string
+          container_id: string
           created_at: string | null
-          user_id: string
+          description: string
+          from_location_id: string | null
+          from_status: string | null
+          id: string
+          metadata: Json | null
+          movement_type: string
+          organization_id: string
+          performed_at: string
+          performed_by_user_id: string | null
+          related_release_request_id: string | null
+          to_location_id: string | null
+          to_status: string | null
         }
         Insert: {
-          client_id: string
+          container_id: string
           created_at?: string | null
-          user_id: string
+          description: string
+          from_location_id?: string | null
+          from_status?: string | null
+          id?: string
+          metadata?: Json | null
+          movement_type: string
+          organization_id: string
+          performed_at?: string
+          performed_by_user_id?: string | null
+          related_release_request_id?: string | null
+          to_location_id?: string | null
+          to_status?: string | null
         }
         Update: {
-          client_id?: string
+          container_id?: string
           created_at?: string | null
-          user_id?: string
+          description?: string
+          from_location_id?: string | null
+          from_status?: string | null
+          id?: string
+          metadata?: Json | null
+          movement_type?: string
+          organization_id?: string
+          performed_at?: string
+          performed_by_user_id?: string | null
+          related_release_request_id?: string | null
+          to_location_id?: string | null
+          to_status?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "client_users_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "container_movements_container_id_fkey"
+            columns: ["container_id"]
             isOneToOne: false
-            referencedRelation: "admin_users_view"
-            referencedColumns: ["client_id"]
+            referencedRelation: "containers"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "client_users_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "container_movements_from_location_id_fkey"
+            columns: ["from_location_id"]
             isOneToOne: false
-            referencedRelation: "clients"
+            referencedRelation: "storage_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "container_movements_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "container_movements_performed_by_user_id_fkey"
+            columns: ["performed_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "container_movements_related_release_request_id_fkey"
+            columns: ["related_release_request_id"]
+            isOneToOne: false
+            referencedRelation: "release_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "container_movements_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "storage_locations"
             referencedColumns: ["id"]
           },
         ]
-      }
-      clients: {
-        Row: {
-          address: string | null
-          billing_email: string | null
-          city: string | null
-          contact_person: string | null
-          country: string | null
-          created_at: string | null
-          created_by: string | null
-          default_base_cost_brl: number | null
-          default_measurement_day: number | null
-          email: string | null
-          fantasy_name: string | null
-          id: string
-          name: string
-          notes: string | null
-          phone: string | null
-          state: string | null
-          status: string | null
-          tax_id: string
-          updated_at: string | null
-          user_id: string
-          zip_code: string | null
-        }
-        Insert: {
-          address?: string | null
-          billing_email?: string | null
-          city?: string | null
-          contact_person?: string | null
-          country?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          default_base_cost_brl?: number | null
-          default_measurement_day?: number | null
-          email?: string | null
-          fantasy_name?: string | null
-          id?: string
-          name: string
-          notes?: string | null
-          phone?: string | null
-          state?: string | null
-          status?: string | null
-          tax_id: string
-          updated_at?: string | null
-          user_id: string
-          zip_code?: string | null
-        }
-        Update: {
-          address?: string | null
-          billing_email?: string | null
-          city?: string | null
-          contact_person?: string | null
-          country?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          default_base_cost_brl?: number | null
-          default_measurement_day?: number | null
-          email?: string | null
-          fantasy_name?: string | null
-          id?: string
-          name?: string
-          notes?: string | null
-          phone?: string | null
-          state?: string | null
-          status?: string | null
-          tax_id?: string
-          updated_at?: string | null
-          user_id?: string
-          zip_code?: string | null
-        }
-        Relationships: []
-      }
-      container_types: {
-        Row: {
-          code: string
-          cubic_capacity_m3: number | null
-          default_base_cost_brl: number | null
-          description: string | null
-          door_height_mm: number | null
-          door_width_mm: number | null
-          external_height_mm: number | null
-          external_length_mm: number | null
-          external_width_mm: number | null
-          id: string
-          internal_height_mm: number | null
-          internal_length_mm: number | null
-          internal_width_mm: number | null
-          is_active: boolean | null
-          max_payload_kg: number | null
-          name: string
-          size_feet: string | null
-          tare_weight_kg: number | null
-        }
-        Insert: {
-          code: string
-          cubic_capacity_m3?: number | null
-          default_base_cost_brl?: number | null
-          description?: string | null
-          door_height_mm?: number | null
-          door_width_mm?: number | null
-          external_height_mm?: number | null
-          external_length_mm?: number | null
-          external_width_mm?: number | null
-          id?: string
-          internal_height_mm?: number | null
-          internal_length_mm?: number | null
-          internal_width_mm?: number | null
-          is_active?: boolean | null
-          max_payload_kg?: number | null
-          name: string
-          size_feet?: string | null
-          tare_weight_kg?: number | null
-        }
-        Update: {
-          code?: string
-          cubic_capacity_m3?: number | null
-          default_base_cost_brl?: number | null
-          description?: string | null
-          door_height_mm?: number | null
-          door_width_mm?: number | null
-          external_height_mm?: number | null
-          external_length_mm?: number | null
-          external_width_mm?: number | null
-          id?: string
-          internal_height_mm?: number | null
-          internal_length_mm?: number | null
-          internal_width_mm?: number | null
-          is_active?: boolean | null
-          max_payload_kg?: number | null
-          name?: string
-          size_feet?: string | null
-          tare_weight_kg?: number | null
-        }
-        Relationships: []
       }
       containers: {
         Row: {
-          base_cost_brl: number | null
-          bl_number: string | null
-          client_id: string
-          container_code: string
+          arrival_date: string | null
+          consignee_data: Json | null
+          consignee_id: string | null
           container_number: string
-          container_type: string
           created_at: string | null
           created_by: string | null
-          end_date: string | null
+          currency: string | null
+          delivery_terms: string | null
+          destination_country: string | null
+          destination_port: string | null
+          expected_release_date: string | null
+          final_destination: string | null
+          hs_code: string | null
           id: string
-          measurement_day: number | null
-          nominal_volume_m3: number | null
+          internal_notes: string | null
+          invoice_date: string | null
+          invoice_number: string | null
+          invoice_pdf_url: string | null
           notes: string | null
-          start_date: string
-          status: Database["public"]["Enums"]["container_status"] | null
-          updated_at: string | null
-          yard_location: string | null
-        }
-        Insert: {
-          base_cost_brl?: number | null
-          bl_number?: string | null
-          client_id: string
-          container_code: string
-          container_number: string
-          container_type: string
-          created_at?: string | null
-          created_by?: string | null
-          end_date?: string | null
-          id?: string
-          measurement_day?: number | null
-          nominal_volume_m3?: number | null
-          notes?: string | null
-          start_date: string
-          status?: Database["public"]["Enums"]["container_status"] | null
-          updated_at?: string | null
-          yard_location?: string | null
-        }
-        Update: {
-          base_cost_brl?: number | null
-          bl_number?: string | null
-          client_id?: string
-          container_code?: string
-          container_number?: string
-          container_type?: string
-          created_at?: string | null
-          created_by?: string | null
-          end_date?: string | null
-          id?: string
-          measurement_day?: number | null
-          nominal_volume_m3?: number | null
-          notes?: string | null
-          start_date?: string
-          status?: Database["public"]["Enums"]["container_status"] | null
-          updated_at?: string | null
-          yard_location?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "containers_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "admin_users_view"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "containers_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      events: {
-        Row: {
-          client_reference: string | null
-          container_id: string
-          created_at: string | null
-          created_by: string | null
-          description: string | null
-          document_number: string | null
-          document_type: string | null
-          document_url: string | null
-          event_date: string
-          event_type: Database["public"]["Enums"]["event_type"]
-          id: string
-          import_batch_id: string | null
-          imported_from: string | null
-          justification: string | null
-          model_code: string | null
-          notes: string | null
-          origin_destination: string | null
-          product_name: string
-          quantity: number
-          sku: string
-          total_volume_m3: number | null
-          unit: string | null
-          unit_value_usd: number | null
-          unit_volume_m3: number | null
-        }
-        Insert: {
-          client_reference?: string | null
-          container_id: string
-          created_at?: string | null
-          created_by?: string | null
-          description?: string | null
-          document_number?: string | null
-          document_type?: string | null
-          document_url?: string | null
-          event_date?: string
-          event_type: Database["public"]["Enums"]["event_type"]
-          id?: string
-          import_batch_id?: string | null
-          imported_from?: string | null
-          justification?: string | null
-          model_code?: string | null
-          notes?: string | null
-          origin_destination?: string | null
-          product_name: string
-          quantity: number
-          sku: string
-          total_volume_m3?: number | null
-          unit?: string | null
-          unit_value_usd?: number | null
-          unit_volume_m3?: number | null
-        }
-        Update: {
-          client_reference?: string | null
-          container_id?: string
-          created_at?: string | null
-          created_by?: string | null
-          description?: string | null
-          document_number?: string | null
-          document_type?: string | null
-          document_url?: string | null
-          event_date?: string
-          event_type?: Database["public"]["Enums"]["event_type"]
-          id?: string
-          import_batch_id?: string | null
-          imported_from?: string | null
-          justification?: string | null
-          model_code?: string | null
-          notes?: string | null
-          origin_destination?: string | null
-          product_name?: string
-          quantity?: number
-          sku?: string
-          total_volume_m3?: number | null
-          unit?: string | null
-          unit_value_usd?: number | null
-          unit_volume_m3?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "events_container_id_fkey"
-            columns: ["container_id"]
-            isOneToOne: false
-            referencedRelation: "containers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "events_container_id_fkey"
-            columns: ["container_id"]
-            isOneToOne: false
-            referencedRelation: "containers_stats_view"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      import_jobs: {
-        Row: {
-          completed_at: string | null
-          created_at: string | null
-          created_by: string | null
-          errors: Json | null
-          failed_records: number | null
-          file_name: string | null
-          file_size_bytes: number | null
-          file_url: string | null
-          id: string
-          job_type: string
-          payload: Json
-          processed_records: number | null
-          progress_message: string | null
-          progress_percentage: number | null
-          result: Json | null
-          started_at: string | null
-          status: Database["public"]["Enums"]["job_status"] | null
-          total_records: number | null
-        }
-        Insert: {
-          completed_at?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          errors?: Json | null
-          failed_records?: number | null
-          file_name?: string | null
-          file_size_bytes?: number | null
-          file_url?: string | null
-          id?: string
-          job_type: string
-          payload: Json
-          processed_records?: number | null
-          progress_message?: string | null
-          progress_percentage?: number | null
-          result?: Json | null
-          started_at?: string | null
-          status?: Database["public"]["Enums"]["job_status"] | null
-          total_records?: number | null
-        }
-        Update: {
-          completed_at?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          errors?: Json | null
-          failed_records?: number | null
-          file_name?: string | null
-          file_size_bytes?: number | null
-          file_url?: string | null
-          id?: string
-          job_type?: string
-          payload?: Json
-          processed_records?: number | null
-          progress_message?: string | null
-          progress_percentage?: number | null
-          result?: Json | null
-          started_at?: string | null
-          status?: Database["public"]["Enums"]["job_status"] | null
-          total_records?: number | null
-        }
-        Relationships: []
-      }
-      inventory: {
-        Row: {
-          container_id: string
-          current_quantity: number
-          description: string | null
-          id: string
-          last_movement_at: string | null
-          last_movement_type: Database["public"]["Enums"]["event_type"] | null
-          model_code: string | null
-          product_name: string
-          sku: string
-          total_value_usd: number | null
-          total_volume_m3: number | null
-          unit: string | null
-          unit_gross_weight_kg: number | null
-          unit_net_weight_kg: number | null
-          unit_value_usd: number | null
-          unit_volume_m3: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          container_id: string
-          current_quantity?: number
-          description?: string | null
-          id?: string
-          last_movement_at?: string | null
-          last_movement_type?: Database["public"]["Enums"]["event_type"] | null
-          model_code?: string | null
-          product_name: string
-          sku: string
-          total_value_usd?: number | null
-          total_volume_m3?: number | null
-          unit?: string | null
-          unit_gross_weight_kg?: number | null
-          unit_net_weight_kg?: number | null
-          unit_value_usd?: number | null
-          unit_volume_m3?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          container_id?: string
-          current_quantity?: number
-          description?: string | null
-          id?: string
-          last_movement_at?: string | null
-          last_movement_type?: Database["public"]["Enums"]["event_type"] | null
-          model_code?: string | null
-          product_name?: string
-          sku?: string
-          total_value_usd?: number | null
-          total_volume_m3?: number | null
-          unit?: string | null
-          unit_gross_weight_kg?: number | null
-          unit_net_weight_kg?: number | null
-          unit_value_usd?: number | null
-          unit_volume_m3?: number | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "inventory_container_id_fkey"
-            columns: ["container_id"]
-            isOneToOne: false
-            referencedRelation: "containers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "inventory_container_id_fkey"
-            columns: ["container_id"]
-            isOneToOne: false
-            referencedRelation: "containers_stats_view"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      notifications: {
-        Row: {
-          action_url: string | null
-          created_at: string | null
-          data: Json | null
-          expires_at: string | null
-          id: string
-          message: string
-          notification_type: string
-          read: boolean | null
-          read_at: string | null
-          title: string
-          user_id: string
-        }
-        Insert: {
-          action_url?: string | null
-          created_at?: string | null
-          data?: Json | null
-          expires_at?: string | null
-          id?: string
-          message: string
-          notification_type: string
-          read?: boolean | null
-          read_at?: string | null
-          title: string
-          user_id: string
-        }
-        Update: {
-          action_url?: string | null
-          created_at?: string | null
-          data?: Json | null
-          expires_at?: string | null
-          id?: string
-          message?: string
-          notification_type?: string
-          read?: boolean | null
-          read_at?: string | null
-          title?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      profiles: {
-        Row: {
-          auth_user_id: string | null
-          avatar_url: string | null
-          created_at: string
-          email: string
-          full_name: string | null
-          id: string
-          is_active: boolean | null
-          role: Database["public"]["Enums"]["app_role"] | null
-          updated_at: string
-        }
-        Insert: {
-          auth_user_id?: string | null
-          avatar_url?: string | null
-          created_at?: string
-          email: string
-          full_name?: string | null
-          id?: string
-          is_active?: boolean | null
-          role?: Database["public"]["Enums"]["app_role"] | null
-          updated_at?: string
-        }
-        Update: {
-          auth_user_id?: string | null
-          avatar_url?: string | null
-          created_at?: string
-          email?: string
-          full_name?: string | null
-          id?: string
-          is_active?: boolean | null
-          role?: Database["public"]["Enums"]["app_role"] | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      snapshots: {
-        Row: {
-          allocated_cost_brl: number | null
-          approved_at: string | null
-          approved_by: string | null
-          base_cost_brl: number
-          container_id: string
-          created_at: string | null
-          created_by: string | null
-          events_summary: Json | null
-          id: string
-          initial_volume_m3: number | null
-          inventory_snapshot: Json
-          measurement_day: number
-          notes: string | null
-          period_end: string
-          period_start: string
-          reference_month: string | null
-          remaining_volume_m3: number | null
-          removal_percentage: number | null
-          removed_volume_m3: number | null
-          snapshot_date: string
-          status: Database["public"]["Enums"]["snapshot_status"] | null
-          total_items: number | null
-          total_volume_m3: number | null
-          total_weight_kg: number | null
-        }
-        Insert: {
-          allocated_cost_brl?: number | null
-          approved_at?: string | null
-          approved_by?: string | null
-          base_cost_brl: number
-          container_id: string
-          created_at?: string | null
-          created_by?: string | null
-          events_summary?: Json | null
-          id?: string
-          initial_volume_m3?: number | null
-          inventory_snapshot: Json
-          measurement_day: number
-          notes?: string | null
-          period_end: string
-          period_start: string
-          reference_month?: string | null
-          remaining_volume_m3?: number | null
-          removal_percentage?: number | null
-          removed_volume_m3?: number | null
-          snapshot_date: string
-          status?: Database["public"]["Enums"]["snapshot_status"] | null
-          total_items?: number | null
-          total_volume_m3?: number | null
-          total_weight_kg?: number | null
-        }
-        Update: {
-          allocated_cost_brl?: number | null
-          approved_at?: string | null
-          approved_by?: string | null
-          base_cost_brl?: number
-          container_id?: string
-          created_at?: string | null
-          created_by?: string | null
-          events_summary?: Json | null
-          id?: string
-          initial_volume_m3?: number | null
-          inventory_snapshot?: Json
-          measurement_day?: number
-          notes?: string | null
-          period_end?: string
-          period_start?: string
-          reference_month?: string | null
-          remaining_volume_m3?: number | null
-          removal_percentage?: number | null
-          removed_volume_m3?: number | null
-          snapshot_date?: string
-          status?: Database["public"]["Enums"]["snapshot_status"] | null
-          total_items?: number | null
-          total_volume_m3?: number | null
-          total_weight_kg?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "snapshots_container_id_fkey"
-            columns: ["container_id"]
-            isOneToOne: false
-            referencedRelation: "containers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "snapshots_container_id_fkey"
-            columns: ["container_id"]
-            isOneToOne: false
-            referencedRelation: "containers_stats_view"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      system_settings: {
-        Row: {
-          description: string | null
-          key: string
+          notify_data: Json | null
+          notify_id: string | null
+          organization_id: string
+          origin_country: string | null
+          origin_port: string | null
+          other_documents: Json | null
+          packing_list_number: string | null
+          packing_list_pdf_url: string | null
+          payment_terms: string | null
+          qr_code_url: string | null
+          status: string
+          storage_location_id: string | null
+          storage_start_date: string | null
+          supplier_data: Json | null
+          supplier_id: string | null
+          total_amount: number | null
+          total_cbm: number | null
+          total_gross_weight: number | null
+          total_net_weight: number | null
+          total_volumes: number | null
           updated_at: string | null
           updated_by: string | null
-          value: Json
+          warehouse_id: string | null
         }
         Insert: {
-          description?: string | null
-          key: string
+          arrival_date?: string | null
+          consignee_data?: Json | null
+          consignee_id?: string | null
+          container_number: string
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string | null
+          delivery_terms?: string | null
+          destination_country?: string | null
+          destination_port?: string | null
+          expected_release_date?: string | null
+          final_destination?: string | null
+          hs_code?: string | null
+          id?: string
+          internal_notes?: string | null
+          invoice_date?: string | null
+          invoice_number?: string | null
+          invoice_pdf_url?: string | null
+          notes?: string | null
+          notify_data?: Json | null
+          notify_id?: string | null
+          organization_id: string
+          origin_country?: string | null
+          origin_port?: string | null
+          other_documents?: Json | null
+          packing_list_number?: string | null
+          packing_list_pdf_url?: string | null
+          payment_terms?: string | null
+          qr_code_url?: string | null
+          status?: string
+          storage_location_id?: string | null
+          storage_start_date?: string | null
+          supplier_data?: Json | null
+          supplier_id?: string | null
+          total_amount?: number | null
+          total_cbm?: number | null
+          total_gross_weight?: number | null
+          total_net_weight?: number | null
+          total_volumes?: number | null
           updated_at?: string | null
           updated_by?: string | null
-          value: Json
+          warehouse_id?: string | null
         }
         Update: {
-          description?: string | null
-          key?: string
+          arrival_date?: string | null
+          consignee_data?: Json | null
+          consignee_id?: string | null
+          container_number?: string
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string | null
+          delivery_terms?: string | null
+          destination_country?: string | null
+          destination_port?: string | null
+          expected_release_date?: string | null
+          final_destination?: string | null
+          hs_code?: string | null
+          id?: string
+          internal_notes?: string | null
+          invoice_date?: string | null
+          invoice_number?: string | null
+          invoice_pdf_url?: string | null
+          notes?: string | null
+          notify_data?: Json | null
+          notify_id?: string | null
+          organization_id?: string
+          origin_country?: string | null
+          origin_port?: string | null
+          other_documents?: Json | null
+          packing_list_number?: string | null
+          packing_list_pdf_url?: string | null
+          payment_terms?: string | null
+          qr_code_url?: string | null
+          status?: string
+          storage_location_id?: string | null
+          storage_start_date?: string | null
+          supplier_data?: Json | null
+          supplier_id?: string | null
+          total_amount?: number | null
+          total_cbm?: number | null
+          total_gross_weight?: number | null
+          total_net_weight?: number | null
+          total_volumes?: number | null
           updated_at?: string | null
           updated_by?: string | null
-          value?: Json
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "containers_consignee_id_fkey"
+            columns: ["consignee_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "containers_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "containers_notify_id_fkey"
+            columns: ["notify_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "containers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "containers_storage_location_id_fkey"
+            columns: ["storage_location_id"]
+            isOneToOne: false
+            referencedRelation: "storage_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "containers_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "containers_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "containers_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          address: Json | null
+          created_at: string | null
+          email: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          notes: string | null
+          notify_contact: Json | null
+          organization_id: string
+          phone: string | null
+          tax_id: string | null
+          trade_name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: Json | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          notes?: string | null
+          notify_contact?: Json | null
+          organization_id: string
+          phone?: string | null
+          tax_id?: string | null
+          trade_name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: Json | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          notes?: string | null
+          notify_contact?: Json | null
+          organization_id?: string
+          phone?: string | null
+          tax_id?: string | null
+          trade_name?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          address: Json | null
+          cnpj: string
+          created_at: string | null
+          email: string | null
+          id: string
+          is_active: boolean | null
+          logo_url: string | null
+          name: string
+          phone: string | null
+          plan: string | null
+          settings: Json | null
+          trade_name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: Json | null
+          cnpj: string
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          name: string
+          phone?: string | null
+          plan?: string | null
+          settings?: Json | null
+          trade_name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: Json | null
+          cnpj?: string
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          name?: string
+          phone?: string | null
+          plan?: string | null
+          settings?: Json | null
+          trade_name?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
-      user_roles: {
+      products: {
         Row: {
+          category: string | null
+          code: string
           created_at: string | null
+          default_gross_weight: number | null
+          default_net_weight: number | null
+          description: string | null
+          hs_code: string | null
           id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
+          image_url: string | null
+          is_active: boolean | null
+          name: string
+          organization_id: string
+          unit_of_measure: string | null
+          updated_at: string | null
         }
         Insert: {
+          category?: string | null
+          code: string
           created_at?: string | null
+          default_gross_weight?: number | null
+          default_net_weight?: number | null
+          description?: string | null
+          hs_code?: string | null
           id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id: string
+          image_url?: string | null
+          is_active?: boolean | null
+          name: string
+          organization_id: string
+          unit_of_measure?: string | null
+          updated_at?: string | null
         }
         Update: {
+          category?: string | null
+          code?: string
+          created_at?: string | null
+          default_gross_weight?: number | null
+          default_net_weight?: number | null
+          description?: string | null
+          hs_code?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          name?: string
+          organization_id?: string
+          unit_of_measure?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      release_request_items: {
+        Row: {
+          approved_quantity: number | null
+          container_item_id: string
+          created_at: string | null
+          id: string
+          notes: string | null
+          picked_at: string | null
+          picked_by_user_id: string | null
+          picking_location: string | null
+          release_request_id: string
+          released_quantity: number | null
+          requested_quantity: number
+          updated_at: string | null
+        }
+        Insert: {
+          approved_quantity?: number | null
+          container_item_id: string
           created_at?: string | null
           id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
+          notes?: string | null
+          picked_at?: string | null
+          picked_by_user_id?: string | null
+          picking_location?: string | null
+          release_request_id: string
+          released_quantity?: number | null
+          requested_quantity: number
+          updated_at?: string | null
         }
-        Relationships: []
+        Update: {
+          approved_quantity?: number | null
+          container_item_id?: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          picked_at?: string | null
+          picked_by_user_id?: string | null
+          picking_location?: string | null
+          release_request_id?: string
+          released_quantity?: number | null
+          requested_quantity?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "release_request_items_container_item_id_fkey"
+            columns: ["container_item_id"]
+            isOneToOne: false
+            referencedRelation: "container_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "release_request_items_picked_by_user_id_fkey"
+            columns: ["picked_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "release_request_items_release_request_id_fkey"
+            columns: ["release_request_id"]
+            isOneToOne: false
+            referencedRelation: "release_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      release_requests: {
+        Row: {
+          approved_by_user_id: string | null
+          approved_date: string | null
+          container_id: string
+          created_at: string | null
+          customer_id: string | null
+          evidence_photos: Json | null
+          id: string
+          internal_notes: string | null
+          notes: string | null
+          organization_id: string
+          rejection_reason: string | null
+          release_completion_date: string | null
+          release_order_pdf_url: string | null
+          release_start_date: string | null
+          request_date: string
+          request_number: string
+          requested_by_user_id: string | null
+          requester_company: string | null
+          requester_email: string | null
+          requester_name: string | null
+          requester_phone: string | null
+          scheduled_date: string | null
+          signature_url: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          approved_by_user_id?: string | null
+          approved_date?: string | null
+          container_id: string
+          created_at?: string | null
+          customer_id?: string | null
+          evidence_photos?: Json | null
+          id?: string
+          internal_notes?: string | null
+          notes?: string | null
+          organization_id: string
+          rejection_reason?: string | null
+          release_completion_date?: string | null
+          release_order_pdf_url?: string | null
+          release_start_date?: string | null
+          request_date?: string
+          request_number: string
+          requested_by_user_id?: string | null
+          requester_company?: string | null
+          requester_email?: string | null
+          requester_name?: string | null
+          requester_phone?: string | null
+          scheduled_date?: string | null
+          signature_url?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          approved_by_user_id?: string | null
+          approved_date?: string | null
+          container_id?: string
+          created_at?: string | null
+          customer_id?: string | null
+          evidence_photos?: Json | null
+          id?: string
+          internal_notes?: string | null
+          notes?: string | null
+          organization_id?: string
+          rejection_reason?: string | null
+          release_completion_date?: string | null
+          release_order_pdf_url?: string | null
+          release_start_date?: string | null
+          request_date?: string
+          request_number?: string
+          requested_by_user_id?: string | null
+          requester_company?: string | null
+          requester_email?: string | null
+          requester_name?: string | null
+          requester_phone?: string | null
+          scheduled_date?: string | null
+          signature_url?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "release_requests_approved_by_user_id_fkey"
+            columns: ["approved_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "release_requests_container_id_fkey"
+            columns: ["container_id"]
+            isOneToOne: false
+            referencedRelation: "containers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "release_requests_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "release_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "release_requests_requested_by_user_id_fkey"
+            columns: ["requested_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      storage_locations: {
+        Row: {
+          capacity_cbm: number | null
+          code: string
+          created_at: string | null
+          id: string
+          is_occupied: boolean | null
+          notes: string | null
+          type: string | null
+          updated_at: string | null
+          warehouse_id: string
+        }
+        Insert: {
+          capacity_cbm?: number | null
+          code: string
+          created_at?: string | null
+          id?: string
+          is_occupied?: boolean | null
+          notes?: string | null
+          type?: string | null
+          updated_at?: string | null
+          warehouse_id: string
+        }
+        Update: {
+          capacity_cbm?: number | null
+          code?: string
+          created_at?: string | null
+          id?: string
+          is_occupied?: boolean | null
+          notes?: string | null
+          type?: string | null
+          updated_at?: string | null
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "storage_locations_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          address: Json | null
+          country: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          notes: string | null
+          organization_id: string
+          phone: string | null
+          tax_id: string | null
+          trade_name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: Json | null
+          country?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          notes?: string | null
+          organization_id: string
+          phone?: string | null
+          tax_id?: string | null
+          trade_name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: Json | null
+          country?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          notes?: string | null
+          organization_id?: string
+          phone?: string | null
+          tax_id?: string | null
+          trade_name?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          email: string
+          full_name: string
+          id: string
+          is_active: boolean | null
+          last_login_at: string | null
+          organization_id: string
+          password_hash: string | null
+          phone: string | null
+          preferences: Json | null
+          role: string
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email: string
+          full_name: string
+          id?: string
+          is_active?: boolean | null
+          last_login_at?: string | null
+          organization_id: string
+          password_hash?: string | null
+          phone?: string | null
+          preferences?: Json | null
+          role: string
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          is_active?: boolean | null
+          last_login_at?: string | null
+          organization_id?: string
+          password_hash?: string | null
+          phone?: string | null
+          preferences?: Json | null
+          role?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "users_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      warehouses: {
+        Row: {
+          address: Json
+          code: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          manager_id: string | null
+          name: string
+          organization_id: string
+          total_capacity_cbm: number | null
+          total_positions: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          address: Json
+          code: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          manager_id?: string | null
+          name: string
+          organization_id: string
+          total_capacity_cbm?: number | null
+          total_positions?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: Json
+          code?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          manager_id?: string | null
+          name?: string
+          organization_id?: string
+          total_capacity_cbm?: number | null
+          total_positions?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "warehouses_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warehouses_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
-      admin_users_view: {
-        Row: {
-          client_id: string | null
-          client_name: string | null
-          created_at: string | null
-          email: string | null
-          full_name: string | null
-          id: string | null
-          is_active: boolean | null
-          role: Database["public"]["Enums"]["app_role"] | null
-        }
-        Relationships: []
-      }
-      containers_stats_view: {
-        Row: {
-          base_cost_brl: number | null
-          bl_number: string | null
-          client_id: string | null
-          client_name: string | null
-          container_code: string | null
-          container_number: string | null
-          container_type: string | null
-          container_type_name: string | null
-          id: string | null
-          items_count: number | null
-          nominal_volume_m3: number | null
-          start_date: string | null
-          status: Database["public"]["Enums"]["container_status"] | null
-          total_gross_weight: number | null
-          used_volume: number | null
-          yard_location: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "containers_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "admin_users_view"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "containers_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       [_ in never]: never
     }
     Enums: {
-      app_role: "admin" | "operator" | "viewer"
-      billing_status: "pending" | "approved" | "invoiced" | "paid" | "cancelled"
-      container_status: "active" | "inactive" | "closed"
-      event_type: "entry" | "exit" | "adjustment" | "transfer"
-      job_status: "queued" | "processing" | "completed" | "failed"
-      snapshot_status: "draft" | "approved" | "cancelled"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1088,14 +1149,7 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      app_role: ["admin", "operator", "viewer"],
-      billing_status: ["pending", "approved", "invoiced", "paid", "cancelled"],
-      container_status: ["active", "inactive", "closed"],
-      event_type: ["entry", "exit", "adjustment", "transfer"],
-      job_status: ["queued", "processing", "completed", "failed"],
-      snapshot_status: ["draft", "approved", "cancelled"],
-    },
+    Enums: {},
   },
 } as const
 
