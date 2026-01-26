@@ -8,21 +8,34 @@ import {
 } from '@/components/ui/card'
 
 export function PowerShellCard() {
-  const edgeFunctionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bl_create_container_items`
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const edgeFunctionUrl = `${supabaseUrl}/functions/v1/bl_create_container_items`
 
-  const script = `$URL = "${edgeFunctionUrl}"
-$access_token = Read-Host -Prompt "Cole o access_token aqui"
+  const script = `$base = "${supabaseUrl}"
+$fn = "${edgeFunctionUrl}"
+$anon = Read-Host -Prompt "Cole a ANON KEY (Settings > API > anon public)"
+$access_token = Read-Host -Prompt "Cole o access_token (eyJ...)"
+
+# Sanitização Robusta
 $access_token = $access_token.Trim()
-# Remove "Bearer " prefix if present (case-insensitive)
+# Remove "Bearer " prefix (case-insensitive)
 $access_token = $access_token -replace "^(?i)bearer\\s*", ""
-# Remove invalid characters (keep only alphanumeric, -, _, .)
+# Remove quotes, parenthesis, spaces from start/end (common copy-paste issues)
+$access_token = $access_token -replace "^['""\\(\\)\\s]+|['""\\(\\)\\s]+$", ""
+# Remove anything that is not alphanumeric, -, _, .
 $access_token = $access_token -replace "[^a-zA-Z0-9\\-\\._]", ""
 
+# Validação Estrita
 if (($access_token -split "\\.").Count -ne 3) {
-    Write-Host "Erro: Token inválido (deve ter 3 partes)." -ForegroundColor Red
+    Write-Host "Erro: Token inválido (deve ter 3 partes separadas por ponto)." -ForegroundColor Red
 } else {
-    Write-Host "URL definida: $URL" -ForegroundColor Green
-    Write-Host "Token limpo: $access_token" -ForegroundColor Green
+    Write-Host "OK: token capturado e sanitizado (nao exibido)." -ForegroundColor Green
+
+    Write-Host "1) Teste Auth /auth/v1/user ..." -ForegroundColor Cyan
+    curl.exe -X GET "$base/auth/v1/user" -H "apikey: $anon" -H "Authorization: Bearer $access_token"
+
+    Write-Host "\`n2) Teste Edge Function ..." -ForegroundColor Cyan
+    curl.exe -X POST "$fn" -H "apikey: $anon" -H "Authorization: Bearer $access_token" -H "Content-Type: application/json" -d "{""request_id"": ""PS-TEST-$(Get-Random)""}"
 }`
 
   return (
