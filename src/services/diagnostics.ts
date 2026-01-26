@@ -44,13 +44,15 @@ export const DiagnosticsService = {
 
       const resHeaders: Record<string, string> = {}
       response.headers.forEach((val, key) => {
-        // Capture specific headers requested
+        // Capture specific headers requested including debugging ones
         if (
           [
             'access-control-allow-origin',
             'access-control-allow-headers',
             'access-control-allow-methods',
             'content-type',
+            'x-deno-ray',
+            'x-request-id',
           ].includes(key.toLowerCase())
         ) {
           resHeaders[key.toLowerCase()] = val
@@ -89,11 +91,19 @@ export const DiagnosticsService = {
           headers: headers as any,
         },
       )
-      const body = await response.json()
+
+      let resBody
+      try {
+        const text = await response.text()
+        resBody = text ? JSON.parse(text) : {}
+      } catch {
+        resBody = { error: 'Failed to parse JSON body' }
+      }
+
       return {
         status: response.status,
         headers: {},
-        body,
+        body: resBody,
       }
     } catch (e: any) {
       return { status: 0, headers: {}, body: { error: e.message } }
@@ -137,14 +147,6 @@ export const DiagnosticsService = {
   },
 
   async testRLS() {
-    // To properly test RLS failure on Edge Function, we would need to sign a token for another user
-    // or attempt to access data that doesn't belong to us.
-    // However, since we can't easily generate other users' tokens here, we simulate by sending
-    // an organization_id in body that differs from the token's org (if the logic trusted body).
-    // The acceptance criteria QA-04 asks for cross-org access prohibition.
-    // We will verify that the function ignores body org_id and uses token.
-    // But actually, to fail, we should try to insert for another org if possible.
-    // Since we are creating new data, RLS prevents inserting if org_id mismatches.
     const randomOrgId = '00000000-0000-0000-0000-000000000000'
     return this.runRawRequest(EDGE_FUNCTION_URL, 'POST', {
       request_id: crypto.randomUUID(),

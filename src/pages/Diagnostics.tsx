@@ -6,6 +6,13 @@ import { AuthValidationCard } from '@/components/diagnostics/AuthValidationCard'
 import { EdgeFunctionQACard } from '@/components/diagnostics/EdgeFunctionQACard'
 import { PowerShellCard } from '@/components/diagnostics/PowerShellCard'
 
+interface TestCriteria {
+  id: string
+  desc: string
+  expectedStatus: number[]
+  validateBody?: (body: any) => boolean
+}
+
 export default function Diagnostics() {
   const { user, session } = useAuth()
   const [results, setResults] = useState<QAResult[]>([])
@@ -14,11 +21,13 @@ export default function Diagnostics() {
   // Keep track of a request ID for Duplicate Test
   const [, setLastRequestId] = useState<string>('')
 
-  const addResult = (
-    res: Partial<QAResult>,
-    testInfo: { id: string; desc: string; expectedStatus: number[] },
-  ) => {
-    const passed = testInfo.expectedStatus.includes(res.status || 0)
+  const addResult = (res: Partial<QAResult>, testInfo: TestCriteria) => {
+    const statusPassed = testInfo.expectedStatus.includes(res.status || 0)
+    const bodyPassed = testInfo.validateBody
+      ? testInfo.validateBody(res.body)
+      : true
+    const passed = statusPassed && bodyPassed
+
     setResults((prev) => [
       ...prev,
       {
@@ -62,7 +71,9 @@ export default function Diagnostics() {
       addResult(res1, {
         id: 'QA-01',
         desc: 'Invalid UUID Validation',
-        expectedStatus: [400, 422],
+        expectedStatus: [400],
+        validateBody: (body) =>
+          body?.error === 'Invalid request_id. Must be a valid UUID.',
       })
 
       // Test 2: Happy Path
@@ -89,13 +100,7 @@ export default function Diagnostics() {
       addResult(res4, {
         id: 'QA-04',
         desc: 'RLS / Cross-Org Access Protection',
-        expectedStatus: [200, 201], // Wait, we expect 200 because the function should SUCCEED but using the TOKEN's org, ignoring the BODY's org.
-        // OR if the function tries to use body's org, it should fail with 401/403/500.
-        // Given our implementation uses the CLIENT (Token), it will insert for the Token's Org.
-        // So RLS test "Passing" means it didn't crash, but we should verify the data.
-        // However, for this suite, we just check if the function handled it.
-        // If we wanted to strictly fail, we'd need to mock a hostile token.
-        // Let's expect 200 (Sanitized) or 403 (Blocked).
+        expectedStatus: [200, 201, 403],
       })
     } catch (e) {
       console.error(e)
