@@ -250,7 +250,8 @@ export default function Diagnostics() {
         </CardHeader>
         <CardContent>
           <pre className="whitespace-pre-wrap break-words rounded-md bg-slate-900 p-4 text-xs text-slate-50">
-            {`$URL = "https://dlcakaqppcvguugguddi.functions.supabase.co/bl_create_container_items"
+            {`# Definir URL
+$URL = "https://dlcakaqppcvguugguddi.functions.supabase.co/bl_create_container_items"
 
 # Ler token e LIMPAR (remove tudo que não for base64url/dot)
 $jwt1 = Read-Host -Prompt "Cole SOMENTE o access_token (sem aspas, sem parenteses) e Enter"
