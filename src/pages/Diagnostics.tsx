@@ -1,24 +1,10 @@
 import { useState } from 'react'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
-import { Badge } from '@/components/ui/badge'
-import { DiagnosticsService, QAResult } from '@/services/diagnostics'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import {
-  CheckCircle2,
-  XCircle,
-  ShieldAlert,
-  Activity,
-  ArrowRight,
-} from 'lucide-react'
+import { Activity } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { DiagnosticsService, QAResult } from '@/services/diagnostics'
+import { AuthValidationCard } from '@/components/diagnostics/AuthValidationCard'
+import { EdgeFunctionQACard } from '@/components/diagnostics/EdgeFunctionQACard'
+import { PowerShellCard } from '@/components/diagnostics/PowerShellCard'
 
 export default function Diagnostics() {
   const { user, session } = useAuth()
@@ -26,7 +12,7 @@ export default function Diagnostics() {
   const [loading, setLoading] = useState(false)
 
   // Keep track of a request ID for Duplicate Test
-  const [lastRequestId, setLastRequestId] = useState<string>('')
+  const [, setLastRequestId] = useState<string>('')
 
   const addResult = (
     res: Partial<QAResult>,
@@ -71,16 +57,12 @@ export default function Diagnostics() {
       })
 
       // Test 3: Duplicate Prevention
-      // Only run if happy path didn't fail badly, or just run anyway to test idempotency
       const res3 = await DiagnosticsService.testDuplicate(requestId)
       addResult(res3, {
         id: 'QA-03',
         desc: 'Duplicate/Idempotency Check',
         expectedStatus: [409, 400, 200],
       })
-      // Note: 200 might be returned if idempotency just returns existing resource,
-      // but 409 is better. We'll accept typical codes.
-      // User story says: "response must indicate a duplicate status/message"
 
       // Test 4: RLS Isolation
       const res4 = await DiagnosticsService.testRLS()
@@ -108,138 +90,15 @@ export default function Diagnostics() {
         </p>
       </div>
 
-      {/* Frontend Auth Validation */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShieldAlert className="h-5 w-5 text-blue-500" />
-            Frontend Authentication Validation
-          </CardTitle>
-          <CardDescription>
-            Verification of JWT injection in outgoing API requests.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2 border p-3 rounded-md bg-slate-50">
-              <span className="text-xs font-semibold uppercase text-muted-foreground">
-                User Identity
-              </span>
-              <div className="font-mono text-sm truncate">
-                {user?.email || 'No User'}
-              </div>
-              <div className="font-mono text-xs text-muted-foreground">
-                {user?.id}
-              </div>
-            </div>
-            <div className="space-y-2 border p-3 rounded-md bg-slate-50">
-              <span className="text-xs font-semibold uppercase text-muted-foreground">
-                Token Claims
-              </span>
-              <div className="flex gap-2">
-                <Badge variant={session ? 'default' : 'destructive'}>
-                  {session ? 'Active Session' : 'No Session'}
-                </Badge>
-                <Badge variant="outline">{session?.token_type || 'N/A'}</Badge>
-              </div>
-            </div>
-          </div>
+      <AuthValidationCard user={user} session={session} />
 
-          <div className="space-y-2">
-            <span className="text-xs font-semibold uppercase text-muted-foreground">
-              Authorization Header Preview
-            </span>
-            <code className="block w-full p-3 bg-slate-900 text-slate-50 rounded-md font-mono text-xs break-all">
-              Authorization: Bearer {session?.access_token?.substring(0, 20)}...
-              {session?.access_token?.substring(
-                session.access_token.length - 10,
-              )}
-            </code>
-            <p className="text-xs text-muted-foreground mt-1">
-              * This header is automatically injected by the Supabase Client in
-              all requests.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <EdgeFunctionQACard
+        loading={loading}
+        results={results}
+        onRunTests={runAllTests}
+      />
 
-      {/* Edge Function QA */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Edge Function QA Suite</span>
-            <Button onClick={runAllTests} disabled={loading}>
-              {loading ? 'Running Tests...' : 'Run QA Tests'}
-              {!loading && <ArrowRight className="ml-2 h-4 w-4" />}
-            </Button>
-          </CardTitle>
-          <CardDescription>
-            Target: <code>bl_create_container_items</code>
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {results.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground bg-slate-50 rounded-lg border border-dashed">
-              Click "Run QA Tests" to execute the test suite.
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {results.map((res) => (
-                <div
-                  key={res.test_id}
-                  className="border rounded-lg overflow-hidden"
-                >
-                  <div className="bg-slate-50 p-3 px-4 border-b flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {res.passed ? (
-                        <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                      ) : (
-                        <XCircle className="h-5 w-5 text-red-500" />
-                      )}
-                      <div>
-                        <span className="font-bold text-sm">{res.test_id}</span>
-                        <span className="mx-2 text-muted-foreground">|</span>
-                        <span className="text-sm font-medium">
-                          {res.description}
-                        </span>
-                      </div>
-                    </div>
-                    <Badge
-                      variant={res.passed ? 'outline' : 'destructive'}
-                      className={
-                        res.passed
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          : ''
-                      }
-                    >
-                      Status: {res.status}
-                    </Badge>
-                  </div>
-
-                  <div className="p-4 grid gap-4 text-xs font-mono">
-                    <div>
-                      <span className="font-semibold text-muted-foreground mb-1 block">
-                        Response Headers (CORS)
-                      </span>
-                      <pre className="bg-slate-100 p-2 rounded overflow-x-auto">
-                        {JSON.stringify(res.headers, null, 2)}
-                      </pre>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-muted-foreground mb-1 block">
-                        Response Body
-                      </span>
-                      <pre className="bg-slate-900 text-green-400 p-2 rounded overflow-x-auto max-h-40">
-                        {JSON.stringify(res.body, null, 2)}
-                      </pre>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <PowerShellCard />
     </div>
   )
 }
