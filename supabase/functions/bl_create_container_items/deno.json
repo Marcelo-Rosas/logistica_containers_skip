@@ -1,7 +1,6 @@
 {
   "imports": {
     "jsr:@supabase/functions-js/edge-runtime.d.ts": "jsr:@supabase/functions-js/edge-runtime.d.ts",
-    "@supabase/supabase-js": "jsr:@supabase/supabase-js@2",
-    "../_shared/cors.ts": "../_shared/cors.ts"
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2"
   }
 }
