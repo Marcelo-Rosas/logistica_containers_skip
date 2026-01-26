@@ -68,7 +68,8 @@ if (($access_token -split "\\.").Count -ne 3) {
         )
     } | ConvertTo-Json -Depth 5
 
-    curl.exe --ssl-no-revoke -X POST "$fn" -H "apikey: $anon" -H "Authorization: Bearer $access_token" -H "Content-Type: application/json" -d $body
+    # Use Write-Output to pipe to curl to avoid escaping issues
+    $body | curl.exe --ssl-no-revoke -X POST "$fn" -H "apikey: $anon" -H "Authorization: Bearer $access_token" -H "Content-Type: application/json" -d @-
 }`
 
   return (

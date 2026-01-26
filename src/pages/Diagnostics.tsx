@@ -45,19 +45,25 @@ export default function Diagnostics() {
     setResults([])
     setLoading(true)
 
-    // RF-01: Check if session exists before running
-    if (!session) {
-      alert('Error: Missing access token (no active session). Please log in.')
-      setLoading(false)
-      return
-    }
-
     const requestId = crypto.randomUUID()
 
     try {
       // Test 0: Auth Check
       // QA-00 (Auth Control)
+      // This will fail (return status 0 or error body) if no session, handled by DiagnosticsService throwing
       const res0 = await DiagnosticsService.testAuth()
+
+      // If service returned status 0 with error "Missing access token...", we record it
+      if (res0.body?.error?.includes('Missing access token')) {
+        addResult(res0, {
+          id: 'QA-00',
+          desc: 'Gateway Auth Check',
+          expectedStatus: [200], // It will fail
+        })
+        setLoading(false)
+        return
+      }
+
       const authPassed = addResult(res0, {
         id: 'QA-00',
         desc: 'Gateway Auth Check (GET /auth/v1/user)',
@@ -103,29 +109,9 @@ export default function Diagnostics() {
 
       // Test 4: RLS Isolation
       // QA-04 (RLS / Cross-Org Access)
-      // RF-04: Return 401/403 OR SKIPPED if not applicable.
-      // Since we don't have a cross-org token, we simulate Injection.
-      // If we are testing as current user, we can't truly test Cross-Org access unless we had a secondary token.
-      // So we implement logic: If status is 200, we verify it didn't actually overwrite org (Safe Injection).
       const res4 = await DiagnosticsService.testRLS()
 
-      // Interpretation:
-      // 403/401: Backend blocked specific org_id (PASS)
-      // 200: Backend processed but likely coerced org_id to own (PASS - Safe)
-      // To strictly follow "Mark as SKIPPED", we can manually override the result if we determine we couldn't strictly fail it.
-      // But for this diagnostics tool, showing "Passed" on a Safe Injection is better.
-      // However, to satisfy the specific "SKIPPED" requirement if no token available:
-      // We will mark it SKIPPED in the UI.
-      const rlsResult = {
-        ...res4,
-        status: 'SKIPPED',
-        body: {
-          ...res4.body,
-          note: 'Skipped - No Cross-Org Token Available for Full Verification',
-        },
-      }
-
-      addResult(rlsResult, {
+      addResult(res4, {
         id: 'QA-04',
         desc: 'RLS / Cross-Org Access Protection',
         expectedStatus: ['SKIPPED'],

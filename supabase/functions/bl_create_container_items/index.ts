@@ -21,7 +21,8 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // Create Supabase client with the user's token (context propagation)
+    // RF-02: User Context Propagation
+    // Create Supabase client with the user's token (context propagation) to respect RLS
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -33,13 +34,12 @@ Deno.serve(async (req: Request) => {
     )
 
     // Verify user validity only if auth header is present
-    let user = null
     if (authHeader) {
       const {
-        data: { user: u },
+        data: { user },
         error: userError,
       } = await supabaseClient.auth.getUser()
-      if (userError || !u) {
+      if (userError || !user) {
         return new Response(
           JSON.stringify({
             error: 'Invalid or expired token',
@@ -51,7 +51,6 @@ Deno.serve(async (req: Request) => {
           },
         )
       }
-      user = u
     }
 
     // 2. Parse Body & Input Validation
@@ -67,7 +66,7 @@ Deno.serve(async (req: Request) => {
 
     const { request_id } = body
 
-    // QA-01: UUID Validation
+    // RF-04: UUID Validation
     const uuidRegex =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     if (!request_id || !uuidRegex.test(request_id)) {
@@ -84,21 +83,25 @@ Deno.serve(async (req: Request) => {
     // Supports { container, items, request_id } (Single) OR { containers: [], request_id } (Batch)
     let containersToProcess = []
 
-    if (body.container && body.items) {
+    if (body.container) {
       // Canonical Contract (Single Mode)
-      // Normalize to internal array structure
       containersToProcess.push({
         ...body.container,
-        items: body.items,
+        items: body.items || [],
       })
     } else if (body.containers && Array.isArray(body.containers)) {
       // Legacy/Batch Mode
-      containersToProcess = body.containers
+      // Propagate root-level bl_number if missing in container
+      const rootBlNumber = body.bl_number
+      containersToProcess = body.containers.map((c: any) => ({
+        ...c,
+        bl_number: c.bl_number || rootBlNumber,
+      }))
     } else {
       return new Response(
         JSON.stringify({
           error:
-            'Invalid payload. Must provide "container" and "items" (Canonical) OR "containers" array.',
+            'Invalid payload. Must provide "container" (Canonical) OR "containers" array.',
         }),
         {
           status: 400,
@@ -113,7 +116,7 @@ Deno.serve(async (req: Request) => {
     for (const container of containersToProcess) {
       // Map input to what RPC/DB expects
       const containerPayload = {
-        bl_number: container.bl_number || body.bl_number,
+        bl_number: container.bl_number,
         container_number: container.container_number || container.codigo,
         container_type: container.container_type || container.tipo,
         ...container,
@@ -161,7 +164,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // 4. Response
-    // QA-02: Happy Path returns 200 with results
+    // RF-05: Ensure headers on success
     return new Response(
       JSON.stringify({
         message: 'Processing complete',

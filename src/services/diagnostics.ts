@@ -43,7 +43,7 @@ export const DiagnosticsService = {
     if (session?.access_token) {
       headers['Authorization'] = `Bearer ${session.access_token}`
     } else if (requireAuth) {
-      // If no session exists, report error as per acceptance criteria
+      // If no session exists and auth is required, throw specific error for UI to catch
       throw new Error('Missing access token (no active session)')
     }
 
@@ -62,6 +62,7 @@ export const DiagnosticsService = {
       const authHeaders = await this.getAuthHeaders(requireAuth)
       headers = { ...authHeaders, ...customHeaders }
     } catch (e: any) {
+      // Return a special status to indicate client-side precondition failure
       return {
         status: 0,
         headers: {},
