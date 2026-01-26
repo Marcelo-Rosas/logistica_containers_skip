@@ -292,6 +292,57 @@ $jwt1 = $jwt1 -replace '[^A-Za-z0-9\\-\\._]', ''   # <-- remove " ( ) espaços e
           </div>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Clarity: checklist de verificação</CardTitle>
+          <CardDescription>
+            Dicas rápidas para validar o snippet e o envio de eventos do Microsoft
+            Clarity.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm text-muted-foreground">
+          <div className="space-y-2">
+            <p className="font-semibold text-slate-700">
+              Confirme o snippet de inicialização
+            </p>
+            <pre className="whitespace-pre-wrap break-words rounded-md bg-slate-900 p-4 text-xs text-slate-50">
+              {`<script type="text/javascript">
+  (function(c,l,a,r,i,t,y){
+      c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+      t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+      y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+  })(window, document, "clarity", "script", "SEU_PROJECT_ID");
+</script>`}
+            </pre>
+            <p>
+              Substitua <strong>SEU_PROJECT_ID</strong> pelo ID correto do
+              projeto no painel do Clarity.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <p className="font-semibold text-slate-700">Checar o payload</p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>
+                Abra o DevTools → aba Network → filtre por{' '}
+                <code className="text-xs text-slate-900">collect</code>.
+              </li>
+              <li>Verifique o corpo da requisição e os campos enviados.</li>
+            </ul>
+          </div>
+
+          <div className="space-y-2">
+            <p className="font-semibold text-slate-700">Outras validações</p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>Teste com extensões de bloqueio desativadas.</li>
+              <li>
+                Atualize o script usando a versão mais recente do site oficial.
+              </li>
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
