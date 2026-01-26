@@ -16,26 +16,54 @@ $fn = "${edgeFunctionUrl}"
 $anon = Read-Host -Prompt "Cole a ANON KEY (Settings > API > anon public)"
 $access_token = Read-Host -Prompt "Cole o access_token (eyJ...)"
 
-# Sanitização Robusta
+# --- SANITIZATION BLOCK ---
+# 1. Trim whitespace
 $access_token = $access_token.Trim()
-# Remove "Bearer " prefix (case-insensitive)
+# 2. Remove "Bearer" prefix (case-insensitive)
 $access_token = $access_token -replace "^(?i)bearer\\s*", ""
-# Remove quotes, parenthesis, spaces from start/end (common copy-paste issues)
+# 3. Strip quotes (single/double) and parentheses that might be copied
 $access_token = $access_token -replace "^['""\\(\\)\\s]+|['""\\(\\)\\s]+$", ""
-# Remove anything that is not alphanumeric, -, _, .
+# 4. Remove any non-base64-url characters (keep alphanumeric, -, _, .)
 $access_token = $access_token -replace "[^a-zA-Z0-9\\-\\._]", ""
+# --------------------------
 
-# Validação Estrita
+# Validation
 if (($access_token -split "\\.").Count -ne 3) {
-    Write-Host "Erro: Token inválido (deve ter 3 partes separadas por ponto)." -ForegroundColor Red
+    Write-Host "Erro: Token inválido (formato JWT incorreto)." -ForegroundColor Red
 } else {
-    Write-Host "OK: token capturado e sanitizado (nao exibido)." -ForegroundColor Green
+    Write-Host "OK: Token sanitizado e validado." -ForegroundColor Green
 
-    Write-Host "1) Teste Auth /auth/v1/user ..." -ForegroundColor Cyan
-    curl.exe -X GET "$base/auth/v1/user" -H "apikey: $anon" -H "Authorization: Bearer $access_token"
+    # QA-00: Auth Check
+    Write-Host "\`n1) Teste Auth /auth/v1/user ..." -ForegroundColor Cyan
+    try {
+        $authResp = curl.exe -s -o /dev/null -w "%{http_code}" -X GET "$base/auth/v1/user" -H "apikey: $anon" -H "Authorization: Bearer $access_token"
+        if ($authResp -eq "200") {
+             Write-Host "   [PASS] Auth Check (200 OK)" -ForegroundColor Green
+        } else {
+             Write-Host "   [FAIL] Auth Check ($authResp)" -ForegroundColor Red
+             Exit
+        }
+    } catch {
+        Write-Host "   [ERROR] Falha ao executar curl" -ForegroundColor Red
+        Exit
+    }
 
-    Write-Host "\`n2) Teste Edge Function ..." -ForegroundColor Cyan
-    curl.exe -X POST "$fn" -H "apikey: $anon" -H "Authorization: Bearer $access_token" -H "Content-Type: application/json" -d "{""request_id"": ""PS-TEST-$(Get-Random)""}"
+    # QA-02: Edge Function Happy Path
+    Write-Host "\`n2) Teste Edge Function (Happy Path) ..." -ForegroundColor Cyan
+    $reqId = [guid]::NewGuid().ToString()
+    $body = @{
+        request_id = $reqId
+        bl_number  = "PS-QA-TEST"
+        containers = @(
+            @{
+                codigo = "PS-CONT-" + (Get-Random -Minimum 1000 -Maximum 9999)
+                tipo   = "20ft"
+                items  = @()
+            }
+        )
+    } | ConvertTo-Json -Depth 5
+
+    curl.exe -X POST "$fn" -H "apikey: $anon" -H "Authorization: Bearer $access_token" -H "Content-Type: application/json" -d $body
 }`
 
   return (
@@ -43,10 +71,11 @@ if (($access_token -split "\\.").Count -ne 3) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Terminal className="h-5 w-5 text-slate-700" />
-          PowerShell: preparar JWT e URL
+          PowerShell: QA Script
         </CardTitle>
         <CardDescription>
-          Defina a URL da Edge Function e limpe o access token antes de testar.
+          Script atualizado com sanitização de token e teste de 2 estágios (Auth
+          + Function).
         </CardDescription>
       </CardHeader>
       <CardContent>
