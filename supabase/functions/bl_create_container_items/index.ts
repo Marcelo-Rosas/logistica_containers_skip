@@ -3,52 +3,57 @@ import { createClient } from '@supabase/supabase-js'
 import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req: Request) => {
-  // Handle CORS preflight
+  // RF-05: CORS Preflight - Respond to OPTIONS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
     // 1. Auth & Context Setup
-    // Manual JWT verification logic to ensure robust handling even if --no-verify-jwt is used
     const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Missing Authorization header' }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        },
-      )
+    const apiKey = req.headers.get('apikey')
+
+    // RF-01: Ensure apikey is present
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'Missing apikey header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     // Create Supabase client with the user's token (context propagation)
+    // We strictly use the provided Authorization header for RLS
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
-          headers: { Authorization: authHeader },
+          headers: { Authorization: authHeader ?? '' },
         },
       },
     )
 
-    // Verify user validity (extra security check)
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseClient.auth.getUser()
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({
-          error: 'Invalid or expired token',
-          details: userError,
-        }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        },
-      )
+    // Verify user validity (extra security check) only if auth header is present
+    // If no auth header is present, it's an anonymous request (which might be blocked by RLS later)
+    let user = null
+    if (authHeader) {
+      const {
+        data: { user: u },
+        error: userError,
+      } = await supabaseClient.auth.getUser()
+      if (userError || !u) {
+        return new Response(
+          JSON.stringify({
+            error: 'Invalid or expired token',
+            details: userError,
+          }),
+          {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          },
+        )
+      }
+      user = u
     }
 
     // 2. Parse Body & Input Validation
@@ -62,7 +67,7 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    const { request_id, bl_number, containers } = body
+    const { request_id } = body
 
     // QA-01: UUID Validation
     const uuidRegex =
@@ -71,15 +76,32 @@ Deno.serve(async (req: Request) => {
       return new Response(
         JSON.stringify({ error: 'Invalid request_id. Must be a valid UUID.' }),
         {
-          status: 400,
+          status: 400, // RF-04: Must return 400
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         },
       )
     }
 
-    if (!containers || !Array.isArray(containers)) {
+    // RF-03: Canonical Payload Contract Support
+    // Supports { container, items, request_id } (Single) OR { containers: [], request_id } (Batch)
+    let containersToProcess = []
+
+    if (body.container && body.items) {
+      // Canonical Contract (Single Mode)
+      // Normalize to internal array structure
+      containersToProcess.push({
+        ...body.container,
+        items: body.items,
+      })
+    } else if (body.containers && Array.isArray(body.containers)) {
+      // Legacy/Batch Mode
+      containersToProcess = body.containers
+    } else {
       return new Response(
-        JSON.stringify({ error: 'Invalid containers array.' }),
+        JSON.stringify({
+          error:
+            'Invalid payload. Must provide "container" and "items" (Canonical) OR "containers" array.',
+        }),
         {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -90,18 +112,18 @@ Deno.serve(async (req: Request) => {
     // 3. Process Logic (RPC Integration)
     const results = []
 
-    // Iterate over containers and call the RPC for each
-    for (const container of containers) {
-      // Prepare container payload for RPC
-      // Mapping input fields to what RPC/DB expects (p_container: Json)
+    for (const container of containersToProcess) {
+      // Map input to what RPC/DB expects
+      // RF-03: Use canonical keys (container_number, container_type) with fallbacks
       const containerPayload = {
+        bl_number: container.bl_number || body.bl_number, // Allow local or global BL
+        container_number: container.container_number || container.codigo, // Standard vs Legacy
+        container_type: container.container_type || container.tipo, // Standard vs Legacy
         ...container,
-        bl_number: bl_number, // Ensure BL number is propagated
-        container_number: container.codigo || container.container_number, // Fallback
-        container_type: container.tipo || container.container_type,
       }
 
-      const itemsPayload = container.items || []
+      // Ensure items is an array
+      const itemsPayload = container.items || containerPayload.items || []
 
       // Call RPC using the authenticated client (preserves RLS)
       const { data, error } = await supabaseClient.rpc(
@@ -114,8 +136,7 @@ Deno.serve(async (req: Request) => {
       )
 
       if (error) {
-        // Handle database errors (including duplicate checks if RPC returns error for it)
-        // If it's a constraint violation for duplicate, we might want to flag it as skipped/duplicate
+        // QA-03: Handle duplicates or errors
         if (
           error.code === '23505' ||
           error.message?.toLowerCase().includes('duplicate')
@@ -143,10 +164,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // 4. Response
-    // Return 200 OK with results summary.
-    // QA-03 says duplicate should return status 200, 409 or 422.
-    // Since we process a batch, we return 200 with individual statuses unless all failed badly.
-
+    // QA-02: Happy Path returns 200 with results
     return new Response(
       JSON.stringify({
         message: 'Processing complete',
@@ -154,11 +172,12 @@ Deno.serve(async (req: Request) => {
         results,
       }),
       {
-        status: 200, // Always 200 for batch processing unless catastrophic failure
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       },
     )
   } catch (error: any) {
+    // RF-05: Ensure CORS on 500 errors
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

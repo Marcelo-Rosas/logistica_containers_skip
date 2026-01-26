@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, XCircle } from 'lucide-react'
+import { ArrowRight, CheckCircle2, XCircle, AlertCircle } from 'lucide-react'
 import {
   Card,
   CardHeader,
@@ -42,58 +42,70 @@ export function EdgeFunctionQACard({
           </div>
         ) : (
           <div className="space-y-6">
-            {results.map((res) => (
-              <div
-                key={res.test_id}
-                className="border rounded-lg overflow-hidden"
-              >
-                <div className="bg-slate-50 p-3 px-4 border-b flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {res.passed ? (
-                      <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-red-500" />
-                    )}
+            {results.map((res) => {
+              const isSkipped = res.status === 'SKIPPED'
+              return (
+                <div
+                  key={res.test_id}
+                  className="border rounded-lg overflow-hidden"
+                >
+                  <div className="bg-slate-50 p-3 px-4 border-b flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {isSkipped ? (
+                        <AlertCircle className="h-5 w-5 text-yellow-500" />
+                      ) : res.passed ? (
+                        <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                      ) : (
+                        <XCircle className="h-5 w-5 text-red-500" />
+                      )}
+                      <div>
+                        <span className="font-bold text-sm">{res.test_id}</span>
+                        <span className="mx-2 text-muted-foreground">|</span>
+                        <span className="text-sm font-medium">
+                          {res.description}
+                        </span>
+                      </div>
+                    </div>
+                    <Badge
+                      variant={
+                        isSkipped
+                          ? 'secondary'
+                          : res.passed
+                            ? 'outline'
+                            : 'destructive'
+                      }
+                      className={
+                        res.passed && !isSkipped
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : ''
+                      }
+                    >
+                      Status: {res.status}
+                    </Badge>
+                  </div>
+
+                  <div className="p-4 grid gap-4 text-xs font-mono">
+                    {/* RF-05: CORS Headers Display */}
                     <div>
-                      <span className="font-bold text-sm">{res.test_id}</span>
-                      <span className="mx-2 text-muted-foreground">|</span>
-                      <span className="text-sm font-medium">
-                        {res.description}
+                      <span className="font-semibold text-muted-foreground mb-1 block">
+                        Response Headers (CORS & Debug)
                       </span>
+                      <pre className="bg-slate-100 p-2 rounded overflow-x-auto">
+                        {JSON.stringify(res.headers, null, 2)}
+                      </pre>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-muted-foreground mb-1 block">
+                        Response Body
+                      </span>
+                      <pre className="bg-slate-900 text-green-400 p-2 rounded overflow-x-auto max-h-40">
+                        {JSON.stringify(res.body, null, 2)}
+                      </pre>
                     </div>
                   </div>
-                  <Badge
-                    variant={res.passed ? 'outline' : 'destructive'}
-                    className={
-                      res.passed
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : ''
-                    }
-                  >
-                    Status: {res.status}
-                  </Badge>
                 </div>
-
-                <div className="p-4 grid gap-4 text-xs font-mono">
-                  <div>
-                    <span className="font-semibold text-muted-foreground mb-1 block">
-                      Response Headers (CORS)
-                    </span>
-                    <pre className="bg-slate-100 p-2 rounded overflow-x-auto">
-                      {JSON.stringify(res.headers, null, 2)}
-                    </pre>
-                  </div>
-                  <div>
-                    <span className="font-semibold text-muted-foreground mb-1 block">
-                      Response Body
-                    </span>
-                    <pre className="bg-slate-900 text-green-400 p-2 rounded overflow-x-auto max-h-40">
-                      {JSON.stringify(res.body, null, 2)}
-                    </pre>
-                  </div>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </CardContent>

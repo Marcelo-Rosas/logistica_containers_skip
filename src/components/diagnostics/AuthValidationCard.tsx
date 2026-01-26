@@ -15,6 +15,12 @@ interface AuthValidationCardProps {
 }
 
 export function AuthValidationCard({ user, session }: AuthValidationCardProps) {
+  // RF Safety Check: Safely substring access token
+  const tokenPreview =
+    session?.access_token && session.access_token.length > 20
+      ? `${session.access_token.substring(0, 20)}...${session.access_token.substring(session.access_token.length - 10)}`
+      : 'N/A'
+
   return (
     <Card>
       <CardHeader>
@@ -57,8 +63,7 @@ export function AuthValidationCard({ user, session }: AuthValidationCardProps) {
             Authorization Header Preview
           </span>
           <code className="block w-full p-3 bg-slate-900 text-slate-50 rounded-md font-mono text-xs break-all">
-            Authorization: Bearer {session?.access_token?.substring(0, 20)}...
-            {session?.access_token?.substring(session.access_token.length - 10)}
+            Authorization: Bearer {tokenPreview}
           </code>
           <p className="text-xs text-muted-foreground mt-1">
             * This header is automatically injected by the Supabase Client in
