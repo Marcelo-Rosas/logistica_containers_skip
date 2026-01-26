@@ -240,6 +240,30 @@ export default function Diagnostics() {
           )}
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>PowerShell: preparar JWT e URL</CardTitle>
+          <CardDescription>
+            Defina a URL da Edge Function e limpe o access token antes de testar.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <pre className="whitespace-pre-wrap break-words rounded-md bg-slate-900 p-4 text-xs text-slate-50">
+            {`# Definir URL
+$URL = "https://dlcakaqppcvguugguddi.functions.supabase.co/bl_create_container_items"
+
+# Ler token e LIMPAR (remove tudo que não for base64url/dot)
+$jwt1 = Read-Host -Prompt "Cole SOMENTE o access_token (sem aspas, sem parenteses) e Enter"
+$jwt1 = $jwt1.Trim()
+$jwt1 = $jwt1 -replace '^(Bearer\\s+)', ''
+$jwt1 = $jwt1 -replace '[^A-Za-z0-9\\-\\._]', ''   # <-- remove " ( ) espaços etc.
+
+# valida: JWT precisa ter 3 partes
+(($jwt1 -split '\\.').Count)`}
+          </pre>
+        </CardContent>
+      </Card>
     </div>
   )
 }
