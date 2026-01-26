@@ -22,6 +22,7 @@ $access_token = $access_token.Trim()
 # 2. Remove "Bearer" prefix (case-insensitive)
 $access_token = $access_token -replace "^(?i)bearer\\s*", ""
 # 3. Strip quotes (single/double) and parentheses that might be copied
+# Fixed Regex: Uses single-set character class behavior for cleaning
 $access_token = $access_token -replace "^['""\\(\\)\\s]+|['""\\(\\)\\s]+$", ""
 # 4. Remove any non-base64-url characters (keep alphanumeric, -, _, .)
 $access_token = $access_token -replace "[^a-zA-Z0-9\\-\\._]", ""
