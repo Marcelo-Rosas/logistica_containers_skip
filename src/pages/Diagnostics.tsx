@@ -249,6 +249,26 @@ export default function Diagnostics() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="space-y-4 text-sm text-muted-foreground">
+            <p>
+              Este script ajuda a preparar o ambiente de teste no PowerShell ao
+              definir a URL da função e normalizar o token JWT.
+            </p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>
+                Define a URL da Edge Function{' '}
+                <code className="text-xs text-slate-900">
+                  bl_create_container_items
+                </code>
+                .
+              </li>
+              <li>
+                Limpa o <code className="text-xs text-slate-900">access_token</code>{' '}
+                removendo caracteres inválidos para base64url.
+              </li>
+              <li>Valida se o JWT possui as três partes esperadas.</li>
+            </ul>
+          </div>
           <pre className="whitespace-pre-wrap break-words rounded-md bg-slate-900 p-4 text-xs text-slate-50">
             {`# Definir URL
 $URL = "https://dlcakaqppcvguugguddi.functions.supabase.co/bl_create_container_items"
@@ -262,6 +282,14 @@ $jwt1 = $jwt1 -replace '[^A-Za-z0-9\\-\\._]', ''   # <-- remove " ( ) espaços e
 # valida: JWT precisa ter 3 partes
 (($jwt1 -split '\\.').Count)`}
           </pre>
+          <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+            <p className="font-semibold text-slate-700">Próximos passos sugeridos</p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>Adicionar versões do script para outras linguagens.</li>
+              <li>Exibir o payload do JWT decodificado para inspeção rápida.</li>
+              <li>Vincular scripts compartilhados em repositórios GitHub.</li>
+            </ul>
+          </div>
         </CardContent>
       </Card>
     </div>
