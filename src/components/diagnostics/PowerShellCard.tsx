@@ -12,7 +12,7 @@ export function PowerShellCard() {
   const edgeFunctionUrl = `${supabaseUrl}/functions/v1/bl_create_container_items`
 
   // RF-03 & RF-05: Updated PowerShell Script
-  // - Corrected token sanitization regex
+  // - Corrected token sanitization regex (Bearer, Quotes, Parentheses)
   // - Added --ssl-no-revoke for Windows
   // - Uses Canonical Payload Contract
   const script = `$base = "${supabaseUrl}"
@@ -25,11 +25,8 @@ $access_token = Read-Host -Prompt "Cole o access_token (eyJ...)"
 $access_token = $access_token.Trim()
 # 2. Remove "Bearer" prefix (case-insensitive)
 $access_token = $access_token -replace "^(?i)bearer\\s*", ""
-# 3. Strip quotes (single/double) and parentheses that might be copied
-# Fixed Regex: Uses character class properly
-$access_token = $access_token -replace "['""\\(\\)]", ""
-# 4. Remove any non-base64-url characters
-$access_token = $access_token -replace "[^a-zA-Z0-9\\-\\._]", ""
+# 3. Strip quotes (single/double) and parentheses
+$access_token = $access_token -replace "['""()]", ""
 # --------------------------
 
 # Validation

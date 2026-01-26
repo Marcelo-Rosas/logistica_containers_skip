@@ -15,11 +15,15 @@ interface AuthValidationCardProps {
 }
 
 export function AuthValidationCard({ user, session }: AuthValidationCardProps) {
-  // RF Safety Check: Safely substring access token
+  // RF Safety Check: Safely substring access token with defensive checks
   const tokenPreview =
     session?.access_token && session.access_token.length > 20
       ? `${session.access_token.substring(0, 20)}...${session.access_token.substring(session.access_token.length - 10)}`
       : 'N/A'
+
+  const tokenType = session?.token_type || 'N/A'
+  const userId = user?.id || 'N/A'
+  const userEmail = user?.email || 'No User'
 
   return (
     <Card>
@@ -38,11 +42,9 @@ export function AuthValidationCard({ user, session }: AuthValidationCardProps) {
             <span className="text-xs font-semibold uppercase text-muted-foreground">
               User Identity
             </span>
-            <div className="font-mono text-sm truncate">
-              {user?.email || 'No User'}
-            </div>
+            <div className="font-mono text-sm truncate">{userEmail}</div>
             <div className="font-mono text-xs text-muted-foreground">
-              {user?.id}
+              {userId}
             </div>
           </div>
           <div className="space-y-2 border p-3 rounded-md bg-slate-50">
@@ -53,7 +55,7 @@ export function AuthValidationCard({ user, session }: AuthValidationCardProps) {
               <Badge variant={session ? 'default' : 'destructive'}>
                 {session ? 'Active Session' : 'No Session'}
               </Badge>
-              <Badge variant="outline">{session?.token_type || 'N/A'}</Badge>
+              <Badge variant="outline">{tokenType}</Badge>
             </div>
           </div>
         </div>

@@ -22,7 +22,6 @@ Deno.serve(async (req: Request) => {
     }
 
     // Create Supabase client with the user's token (context propagation)
-    // We strictly use the provided Authorization header for RLS
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -33,8 +32,7 @@ Deno.serve(async (req: Request) => {
       },
     )
 
-    // Verify user validity (extra security check) only if auth header is present
-    // If no auth header is present, it's an anonymous request (which might be blocked by RLS later)
+    // Verify user validity only if auth header is present
     let user = null
     if (authHeader) {
       const {
@@ -76,7 +74,7 @@ Deno.serve(async (req: Request) => {
       return new Response(
         JSON.stringify({ error: 'Invalid request_id. Must be a valid UUID.' }),
         {
-          status: 400, // RF-04: Must return 400
+          status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         },
       )
@@ -114,11 +112,10 @@ Deno.serve(async (req: Request) => {
 
     for (const container of containersToProcess) {
       // Map input to what RPC/DB expects
-      // RF-03: Use canonical keys (container_number, container_type) with fallbacks
       const containerPayload = {
-        bl_number: container.bl_number || body.bl_number, // Allow local or global BL
-        container_number: container.container_number || container.codigo, // Standard vs Legacy
-        container_type: container.container_type || container.tipo, // Standard vs Legacy
+        bl_number: container.bl_number || body.bl_number,
+        container_number: container.container_number || container.codigo,
+        container_type: container.container_type || container.tipo,
         ...container,
       }
 

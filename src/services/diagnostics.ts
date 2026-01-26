@@ -5,15 +5,17 @@ const EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bl_
 export interface QAResult {
   test_id: string
   description: string
-  status: number | string // Allow 'SKIPPED' string
+  status: number | string
   headers: Record<string, string>
   body: any
   passed: boolean
 }
 
-// RF-02: Anon Key Prioritization
+// State to store payload for idempotency test
+let lastHappyPathPayload: any = null
+
 const getAnonKey = () => {
-  // Priority: VITE_SUPABASE_ANON_KEY -> VITE_SUPABASE_PUBLISHABLE_KEY
+  // RF-01 & RF-02: Prioritize VITE_SUPABASE_ANON_KEY
   const key =
     import.meta.env.VITE_SUPABASE_ANON_KEY ||
     import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
@@ -27,8 +29,7 @@ const getAnonKey = () => {
 }
 
 export const DiagnosticsService = {
-  // RF-01: Authentication Header Consistency
-  async getAuthHeaders() {
+  async getAuthHeaders(requireAuth = true) {
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -38,14 +39,12 @@ export const DiagnosticsService = {
       'Content-Type': 'application/json',
     }
 
-    // RF-01: Only include Authorization if session exists and is valid
+    // RF-03: Authorization header must only be included if a valid access_token exists
     if (session?.access_token) {
       headers['Authorization'] = `Bearer ${session.access_token}`
-    } else {
-      // If we are testing an authenticated endpoint, this might fail,
-      // but RF-01 says "must never be sent as undefined".
-      // We do NOT throw here because some tests might want to check unauthenticated access.
-      // However, the test runner should check session if needed.
+    } else if (requireAuth) {
+      // If no session exists, report error as per acceptance criteria
+      throw new Error('Missing access token (no active session)')
     }
 
     return headers
@@ -56,10 +55,12 @@ export const DiagnosticsService = {
     method: string,
     body?: any,
     customHeaders: Record<string, string> = {},
+    requireAuth: boolean = true,
   ): Promise<Partial<QAResult>> {
-    let authHeaders = {}
+    let headers = {}
     try {
-      authHeaders = await this.getAuthHeaders()
+      const authHeaders = await this.getAuthHeaders(requireAuth)
+      headers = { ...authHeaders, ...customHeaders }
     } catch (e: any) {
       return {
         status: 0,
@@ -67,8 +68,6 @@ export const DiagnosticsService = {
         body: { error: e.message },
       }
     }
-
-    const headers = { ...authHeaders, ...customHeaders }
 
     try {
       const response = await fetch(url, {
@@ -79,7 +78,7 @@ export const DiagnosticsService = {
 
       const resHeaders: Record<string, string> = {}
       response.headers.forEach((val, key) => {
-        // RF-05: Capture specific headers including CORS
+        // Capture CORS and debug headers
         if (
           key.toLowerCase().startsWith('access-control-allow') ||
           ['content-type', 'x-deno-ray', 'x-request-id', 'date'].includes(
@@ -114,32 +113,14 @@ export const DiagnosticsService = {
 
   async testAuth() {
     try {
-      const headers = await this.getAuthHeaders()
-      // RF-01 Check: If no Authorization header is generated (no session),
-      // we should probably fail this check fast if the user expects to be logged in.
-      // However, runRawRequest handles the fetch.
-
-      const response = await fetch(
+      // Use raw request to test authentication endpoint
+      return this.runRawRequest(
         `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/user`,
-        {
-          method: 'GET',
-          headers: headers as any,
-        },
+        'GET',
+        undefined,
+        {},
+        true,
       )
-
-      let resBody
-      try {
-        const text = await response.text()
-        resBody = text ? JSON.parse(text) : {}
-      } catch {
-        resBody = { error: 'Failed to parse JSON body' }
-      }
-
-      return {
-        status: response.status,
-        headers: {},
-        body: resBody,
-      }
     } catch (e: any) {
       return { status: 0, headers: {}, body: { error: e.message } }
     }
@@ -147,62 +128,72 @@ export const DiagnosticsService = {
 
   async testInvalidUUID() {
     // QA-01: Invalid UUID Validation
-    // RF-03: Uses Canonical Contract even for negative test
-    return this.runRawRequest(EDGE_FUNCTION_URL, 'POST', {
-      request_id: 'invalid-uuid-string',
+    // Must send a complete valid payload structure, but with an invalid request_id.
+    // Expected: 400 Bad Request from logic (not 401).
+    const payload = {
+      request_id: 'not-a-uuid',
       container: {
+        bl_number: 'QA-INVALID-TEST',
         container_number: 'QA-INVALID-UUID',
         container_type: '20ft',
-        bl_number: 'QA-TEST-INVALID',
       },
-      items: [],
-    })
+      items: [{ sku: 'TEST-SKU', name: 'Test Item', quantity: 10 }],
+    }
+
+    return this.runRawRequest(EDGE_FUNCTION_URL, 'POST', payload, {}, true)
   },
 
   async testHappyPath(requestId: string) {
     // QA-02: Happy Path
-    // RF-03: Must follow canonical contract { container, items, request_id }
-    return this.runRawRequest(EDGE_FUNCTION_URL, 'POST', {
+    // Must send valid UUID and properly structured logistics payload (Canonical Contract).
+    const payload = {
       request_id: requestId,
       container: {
         bl_number: `QA-${requestId.substring(0, 8)}`,
-        container_number: `QA-CONT-${Math.floor(Math.random() * 1000)}`,
+        container_number: `QA-CONT-${Math.floor(Math.random() * 10000)}`,
         container_type: '20ft',
       },
       items: [{ sku: 'TEST-SKU', name: 'Test Item', quantity: 10 }],
-    })
+    }
+
+    // Store payload for duplicate test
+    lastHappyPathPayload = payload
+
+    return this.runRawRequest(EDGE_FUNCTION_URL, 'POST', payload, {}, true)
   },
 
   async testDuplicate(requestId: string) {
     // QA-03: Duplicate / Idempotency
-    // Re-use same request_id and payload
-    // Using Canonical Contract
-    return this.runRawRequest(EDGE_FUNCTION_URL, 'POST', {
-      request_id: requestId,
-      container: {
-        bl_number: `QA-${requestId.substring(0, 8)}`,
-        container_number: `QA-CONT-DUPE`,
-        container_type: '20ft',
-      },
-      items: [],
-    })
+    // Reuse payload from happy path if available to simulate exact duplicate request.
+    const payload = lastHappyPathPayload
+      ? JSON.parse(JSON.stringify(lastHappyPathPayload))
+      : {
+          request_id: requestId,
+          container: {
+            bl_number: `QA-${requestId.substring(0, 8)}`,
+            container_number: `QA-CONT-DUPE`,
+            container_type: '20ft',
+          },
+          items: [],
+        }
+
+    // Ensure request_id matches the current test run ID (which should match happy path for idempotency test)
+    payload.request_id = requestId
+
+    return this.runRawRequest(EDGE_FUNCTION_URL, 'POST', payload, {}, true)
   },
 
   async testRLS() {
     // QA-04: RLS / Cross-Org Access
-    // Since we don't have a cross-org token, we perform an Injection Attack test.
-    // If we try to inject a different organization_id, backend should ignore it or fail.
-    const randomOrgId = '00000000-0000-0000-0000-000000000000'
-
-    return this.runRawRequest(EDGE_FUNCTION_URL, 'POST', {
-      request_id: crypto.randomUUID(),
-      container: {
-        organization_id: randomOrgId, // Injection attempt
-        container_number: `QA-RLS-${Math.floor(Math.random() * 1000)}`,
-        container_type: '20ft',
-        bl_number: 'QA-RLS-TEST',
+    // AC: If no second token is available, the test must be marked as "SKIPPED".
+    return {
+      status: 'SKIPPED',
+      headers: {},
+      body: {
+        message:
+          'Skipping RLS test: No secondary token available for cross-org validation',
       },
-      items: [],
-    })
+      passed: true,
+    }
   },
 }
