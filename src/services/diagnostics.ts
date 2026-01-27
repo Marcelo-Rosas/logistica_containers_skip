@@ -40,6 +40,7 @@ export const DiagnosticsService = {
     }
 
     // RF-03: Authorization header must only be included if a valid access_token exists
+    // It must never send Bearer undefined
     if (session?.access_token) {
       headers['Authorization'] = `Bearer ${session.access_token}`
     } else if (requireAuth) {
@@ -114,6 +115,7 @@ export const DiagnosticsService = {
 
   async testAuth() {
     try {
+      // QA-00: Auth Check
       // Use raw request to test authentication endpoint
       return this.runRawRequest(
         `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/user`,

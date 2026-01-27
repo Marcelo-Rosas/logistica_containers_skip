@@ -15,6 +15,7 @@ export function PowerShellCard() {
   // - Corrected token sanitization regex (Bearer, Quotes, Parentheses)
   // - Added --ssl-no-revoke for Windows
   // - Uses Canonical Payload Contract
+  // - Uses --data-binary @- for robust stdin transmission
   const script = `$base = "${supabaseUrl}"
 $fn = "${edgeFunctionUrl}"
 $anon = Read-Host -Prompt "Cole a ANON KEY (Settings > API > anon public)"
@@ -69,7 +70,8 @@ if (($access_token -split "\\.").Count -ne 3) {
     } | ConvertTo-Json -Depth 5
 
     # Use Write-Output to pipe to curl to avoid escaping issues
-    $body | curl.exe --ssl-no-revoke -X POST "$fn" -H "apikey: $anon" -H "Authorization: Bearer $access_token" -H "Content-Type: application/json" -d @-
+    # Uses --data-binary @- to ensure JSON payload is transmitted correctly
+    $body | curl.exe --ssl-no-revoke -X POST "$fn" -H "apikey: $anon" -H "Authorization: Bearer $access_token" -H "Content-Type: application/json" --data-binary @-
 }`
 
   return (
