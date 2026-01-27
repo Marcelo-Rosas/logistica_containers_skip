@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select'
 import { getContainers } from '@/services/container'
 import { Container, ContainerTypeDef } from '@/lib/types'
-import { Plus, UserPlus, FileText } from 'lucide-react'
+import { Plus, UserPlus, FileText, Loader2, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { ContainerCard } from '@/components/ContainerCard'
 import { NewExitEventDialog } from '@/components/NewExitEventDialog'
@@ -39,17 +39,21 @@ export default function Containers() {
   const [selectedContainerId, setSelectedContainerId] = useState<string | null>(
     null,
   )
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadData()
   }, [])
 
   const loadData = async () => {
+    setLoading(true)
     try {
       const data = await getContainers()
       setContainers(data)
     } catch (e) {
       toast.error('Erro ao carregar containers')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -81,7 +85,7 @@ export default function Containers() {
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">
@@ -119,17 +123,34 @@ export default function Containers() {
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filteredContainers.map((container) => (
-          <ContainerCard
-            key={container.id}
-            container={container}
-            onExit={handleExitTrigger}
-            onSimulate={handleSimulate}
-            onExport={handleExport}
-          />
-        ))}
-      </div>
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-16 space-y-4 text-muted-foreground">
+          <Loader2 className="h-10 w-10 animate-spin text-primary/50" />
+          <p>Carregando containers...</p>
+        </div>
+      ) : filteredContainers.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {filteredContainers.map((container) => (
+            <ContainerCard
+              key={container.id}
+              container={container}
+              onExit={handleExitTrigger}
+              onSimulate={handleSimulate}
+              onExport={handleExport}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-16 border-2 border-dashed rounded-lg bg-slate-50/50">
+          <div className="p-4 rounded-full bg-muted/50 mb-3">
+            <AlertCircle className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h3 className="text-lg font-medium">Nenhum container encontrado</h3>
+          <p className="text-muted-foreground text-sm mt-1">
+            Tente ajustar os filtros ou cadastre um novo container via BL.
+          </p>
+        </div>
+      )}
 
       <NewExitEventDialog
         open={isExitDialogOpen}

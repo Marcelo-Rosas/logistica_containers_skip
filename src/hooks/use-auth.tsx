@@ -3,7 +3,6 @@ import {
   useContext,
   useEffect,
   useState,
-  createElement,
   ReactNode,
 } from 'react'
 import { User, Session } from '@supabase/supabase-js'
@@ -37,8 +36,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Listen for changes FIRST
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
       setOrganizationId(
@@ -47,10 +48,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false)
     })
 
-    // Listen for changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    // THEN check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
       setOrganizationId(
@@ -111,5 +110,5 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     loading,
   }
 
-  return createElement(AuthContext.Provider, { value }, children)
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
