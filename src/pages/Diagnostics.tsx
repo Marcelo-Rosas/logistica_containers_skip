@@ -24,6 +24,12 @@ export default function Diagnostics() {
   const { user, session } = useAuth()
   const [results, setResults] = useState<QAResult[]>([])
   const [loading, setLoading] = useState(false)
+  const token = session?.access_token
+  const tokenPreview = token
+    ? `Authorization: Bearer ${token.substring(0, 20)}...${token.substring(
+        token.length - 10,
+      )}`
+    : 'Authorization: (nenhum token ativo)'
 
   // Keep track of a request ID for Duplicate Test
   const [lastRequestId, setLastRequestId] = useState<string>('')
@@ -150,10 +156,7 @@ export default function Diagnostics() {
               Authorization Header Preview
             </span>
             <code className="block w-full p-3 bg-slate-900 text-slate-50 rounded-md font-mono text-xs break-all">
-              Authorization: Bearer {session?.access_token?.substring(0, 20)}...
-              {session?.access_token?.substring(
-                session.access_token.length - 10,
-              )}
+              {tokenPreview}
             </code>
             <p className="text-xs text-muted-foreground mt-1">
               * This header is automatically injected by the Supabase Client in
@@ -280,7 +283,9 @@ $jwt1 = $jwt1 -replace '^(Bearer\\s+)', ''
 $jwt1 = $jwt1 -replace '[^A-Za-z0-9\\-\\._]', ''   # <-- remove " ( ) espaços etc.
 
 # valida: JWT precisa ter 3 partes
-(($jwt1 -split '\\.').Count)`}
+$parts = $jwt1 -split '\\.'
+$parts.Count
+if ($parts.Count -ne 3) { Write-Host "JWT inválido" -ForegroundColor Red }`}
           </pre>
           <div className="mt-4 space-y-2 text-sm text-muted-foreground">
             <p className="font-semibold text-slate-700">Próximos passos sugeridos</p>

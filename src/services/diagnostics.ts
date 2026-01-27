@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase/client'
 
 const EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bl_create_container_items`
-const ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export interface QAResult {
   test_id: string
@@ -17,13 +17,16 @@ export const DiagnosticsService = {
     const {
       data: { session },
     } = await supabase.auth.getSession()
-    return {
+    const headers: Record<string, string> = {
       apikey: ANON_KEY,
-      Authorization: session?.access_token
-        ? `Bearer ${session.access_token}`
-        : undefined,
       'Content-Type': 'application/json',
     }
+
+    if (session?.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`
+    }
+
+    return headers
   },
 
   async runRawRequest(
@@ -91,6 +94,12 @@ export const DiagnosticsService = {
         {
           codigo: `QA-CONT-${Math.floor(Math.random() * 1000)}`,
           tipo: '20ft',
+          bl_number: `QA-${requestId.substring(0, 8)}`,
+          cliente_id: '00000000-0000-0000-0000-000000000000',
+          total_volume_m3: 33.2,
+          total_weight_kg: 1200,
+          vessel: 'QA-VESSEL',
+          voyage: 'QA-VOYAGE',
           items: [{ sku: 'TEST-SKU', name: 'Test Item', quantity: 10 }],
         },
       ],
@@ -106,7 +115,13 @@ export const DiagnosticsService = {
         {
           codigo: `QA-CONT-DUPE`,
           tipo: '20ft',
-          items: [],
+          bl_number: `QA-${requestId.substring(0, 8)}`,
+          cliente_id: '00000000-0000-0000-0000-000000000000',
+          total_volume_m3: 33.2,
+          total_weight_kg: 1200,
+          vessel: 'QA-VESSEL',
+          voyage: 'QA-VOYAGE',
+          items: [{ sku: 'TEST-SKU', name: 'Test Item', quantity: 10 }],
         },
       ],
     })
