@@ -3,6 +3,7 @@ import {
   useContext,
   useEffect,
   useState,
+  createElement,
   ReactNode,
 } from 'react'
 import { User, Session } from '@supabase/supabase-js'
@@ -110,5 +111,5 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     loading,
   }
 
-  return React.createElement(AuthContext.Provider, { value }, children)
+  return createElement(AuthContext.Provider, { value }, children)
 }
