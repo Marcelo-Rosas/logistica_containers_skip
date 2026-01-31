@@ -1,4 +1,4 @@
-/* Main App Component - Updated with Diagnostics Route */
+/* Main App Component - Updated with Improved Routes and Auth Handling */
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
@@ -36,12 +36,17 @@ const App = () => (
         <Toaster />
         <Sonner />
         <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
+          {/* Protected Routes */}
           <Route element={<RequireAuth />}>
             <Route element={<Layout />}>
-              <Route path="/" element={<Index />} />
+              {/* Dashboard / Main App Routes */}
+              <Route path="/containers" element={<Containers />} />
+              <Route path="/containers/:id" element={<ContainerDetails />} />
 
               {/* BL Routes */}
               <Route path="/bl" element={<BLManagement />} />
@@ -50,9 +55,6 @@ const App = () => (
               <Route path="/divergencias" element={<Divergences />} />
 
               <Route path="/clientes" element={<Clientes />} />
-              <Route path="/containers" element={<Containers />} />
-              <Route path="/containers/:id" element={<ContainerDetails />} />
-
               <Route path="/eventos" element={<Events />} />
               <Route path="/faturamento" element={<Faturamento />} />
               <Route path="/relatorios" element={<Relatorios />} />

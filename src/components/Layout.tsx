@@ -38,7 +38,8 @@ export default function Layout() {
   const handleLogout = async () => {
     try {
       await signOut()
-      navigate('/login')
+      toast.success('Logout realizado com sucesso!')
+      navigate('/')
     } catch (error) {
       toast.error('Erro ao sair')
     }

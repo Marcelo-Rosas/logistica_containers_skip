@@ -1,23 +1,23 @@
 import { useAuth } from '@/hooks/use-auth'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
-import { Loader2 } from 'lucide-react'
+import { useEffect, useRef } from 'react'
+import { toast } from 'sonner'
 
 export const RequireAuth = () => {
-  const { user, loading } = useAuth()
+  const { user } = useAuth()
   const location = useLocation()
+  const toastShown = useRef(false)
 
-  if (loading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground animate-pulse">
-            Carregando sessão...
-          </p>
-        </div>
-      </div>
-    )
-  }
+  useEffect(() => {
+    if (!user) {
+      // Only show toast if we are protecting a route that isn't login or root
+      // But RequireAuth wraps protected routes, so any access here without user is invalid
+      if (!toastShown.current) {
+        toast.error('Por favor, faça login para acessar esta página.')
+        toastShown.current = true
+      }
+    }
+  }, [user])
 
   if (!user) {
     // Redirect to login page but save the current location they were trying to go to

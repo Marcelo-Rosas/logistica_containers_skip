@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,7 @@ import {
   Package,
   AlertCircle,
   ArrowLeft,
+  CheckCircle2,
 } from 'lucide-react'
 
 export default function Login() {
@@ -33,21 +34,28 @@ export default function Login() {
     message: string
   } | null>(null)
 
-  const { signIn, resetPassword } = useAuth()
+  const { signIn, resetPassword, user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
-  const from = location.state?.from?.pathname || '/'
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (user) {
+      navigate('/containers', { replace: true })
+    }
+  }, [user, navigate])
+
+  const from = location.state?.from?.pathname || '/containers'
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoginError(null)
 
-    // Sanitize email: remove [blocked] suffix and whitespace
+    // Sanitize email
     let cleanEmail = email.trim()
     if (cleanEmail.toLowerCase().includes('[blocked]')) {
       cleanEmail = cleanEmail.replace(/\s*\[blocked\]\s*/gi, '')
-      setEmail(cleanEmail) // Update UI with clean email
+      setEmail(cleanEmail)
     }
 
     if (!cleanEmail || !password) {
@@ -69,16 +77,12 @@ export default function Login() {
         } else if (error.message.includes('Email not confirmed')) {
           errorTitle = 'Email Não Confirmado'
           errorMessage = 'Por favor, confirme seu email antes de fazer login.'
-        } else if (error.message.includes('Too many requests')) {
-          errorTitle = 'Muitas Tentativas'
-          errorMessage =
-            'Muitas tentativas de login. Tente novamente mais tarde.'
         }
 
         setLoginError({ title: errorTitle, message: errorMessage })
         toast.error(errorMessage)
       } else {
-        toast.success('Login realizado com sucesso!')
+        toast.success('Bem-vindo de volta! Redirecionando para o dashboard...')
         navigate(from, { replace: true })
       }
     } catch (error) {
@@ -94,12 +98,7 @@ export default function Login() {
     e.preventDefault()
     setLoginError(null)
 
-    let cleanEmail = email.trim()
-    if (cleanEmail.toLowerCase().includes('[blocked]')) {
-      cleanEmail = cleanEmail.replace(/\s*\[blocked\]\s*/gi, '')
-      setEmail(cleanEmail)
-    }
-
+    const cleanEmail = email.trim()
     if (!cleanEmail) {
       toast.error('Informe seu email para recuperação')
       return
@@ -109,11 +108,7 @@ export default function Login() {
     try {
       const { error } = await resetPassword(cleanEmail)
       if (error) {
-        if (error.message.includes('Too many requests')) {
-          toast.error('Muitas tentativas. Aguarde um momento.')
-        } else {
-          toast.error('Erro ao enviar email de recuperação.')
-        }
+        toast.error('Erro ao enviar email de recuperação.')
       } else {
         toast.success(
           'Email de recuperação enviado! Verifique sua caixa de entrada.',
@@ -126,6 +121,8 @@ export default function Login() {
       setIsSubmitting(false)
     }
   }
+
+  if (user) return null // Prevent rendering login form if redirecting
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
@@ -225,7 +222,7 @@ export default function Login() {
                     {isSubmitting ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Entrando...
+                        Autenticando...
                       </>
                     ) : (
                       'Entrar'

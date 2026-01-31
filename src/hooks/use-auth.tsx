@@ -7,6 +7,7 @@ import {
 } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
+import { SplashScreen } from '@/components/SplashScreen'
 
 interface AuthContextType {
   user: User | null
@@ -62,7 +63,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   const signIn = async (email: string, password: string) => {
-    // Standardize email handling: trim and ensure lowercase
     const cleanEmail = email.trim().toLowerCase()
     const { error } = await supabase.auth.signInWithPassword({
       email: cleanEmail,
@@ -108,6 +108,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     resetPassword,
     updatePassword,
     loading,
+  }
+
+  // Global Loading State to prevent flickering
+  if (loading) {
+    return <SplashScreen />
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
