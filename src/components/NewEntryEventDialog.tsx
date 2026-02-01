@@ -17,8 +17,9 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { getClients, getContainers, registerEntry } from '@/lib/mock-service'
-import { Client, Container } from '@/lib/types'
+import { getCustomers } from '@/services/master-data'
+import { getContainers, registerEntry } from '@/services/container'
+import { Client, ContainerStats } from '@/lib/types'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -35,7 +36,7 @@ export function NewEntryEventDialog({
   onSuccess,
 }: NewEntryEventDialogProps) {
   const [clients, setClients] = useState<Client[]>([])
-  const [containers, setContainers] = useState<Container[]>([])
+  const [containers, setContainers] = useState<ContainerStats[]>([])
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
@@ -57,8 +58,8 @@ export function NewEntryEventDialog({
     setLoading(true)
     try {
       const [cData, contData] = await Promise.all([
-        getClients(),
-        getContainers(),
+        getCustomers(),
+        getContainers({ status: 'todos' }),
       ])
       setClients(cData)
       setContainers(contData)
@@ -86,6 +87,7 @@ export function NewEntryEventDialog({
       onSuccess()
       onOpenChange(false)
     } catch (e) {
+      console.error(e)
       toast.error('Erro ao registrar entrada')
     } finally {
       setSubmitting(false)
@@ -116,7 +118,7 @@ export function NewEntryEventDialog({
               <SelectContent>
                 {clients.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
-                    {c.nome}
+                    {c.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -136,11 +138,14 @@ export function NewEntryEventDialog({
               <SelectContent>
                 {containers
                   .filter(
-                    (c) => c.status === 'Pendente' || c.status === 'Disponível',
+                    (c) =>
+                      c.status === 'Pendente' ||
+                      c.status === 'Disponível' ||
+                      c.status === 'Vazio',
                   )
                   .map((c) => (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.codigo} ({c.capacidade})
+                      {c.container_number} ({c.status})
                     </SelectItem>
                   ))}
               </SelectContent>

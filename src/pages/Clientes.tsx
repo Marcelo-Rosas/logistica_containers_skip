@@ -1,4 +1,4 @@
-/* Clients Management Page - Enhanced with Create Functionality */
+/* Clients Management Page - Using Real Data */
 import { useEffect, useState } from 'react'
 import {
   Table,
@@ -21,7 +21,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { getClients, createClient } from '@/lib/mock-service'
+import { getCustomers, createCustomer } from '@/services/master-data'
 import { Client } from '@/lib/types'
 import { Eye, Plus, Search, FileSpreadsheet, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
@@ -33,8 +33,8 @@ export default function Clientes() {
 
   // New Client Form State
   const [newClient, setNewClient] = useState({
-    nome: '',
-    contato: '',
+    name: '',
+    phone: '',
     email: '',
   })
 
@@ -43,20 +43,24 @@ export default function Clientes() {
   }, [])
 
   const loadClients = () => {
-    getClients().then(setClients)
+    getCustomers()
+      .then(setClients)
+      .catch(() => {
+        toast.error('Erro ao carregar clientes')
+      })
   }
 
   const handleCreateClient = async () => {
-    if (!newClient.nome || !newClient.email) {
+    if (!newClient.name || !newClient.email) {
       toast.error('Preencha nome e e-mail.')
       return
     }
 
     try {
-      await createClient(newClient)
+      await createCustomer(newClient)
       toast.success('Cliente cadastrado com sucesso!')
       setIsCreateOpen(false)
-      setNewClient({ nome: '', contato: '', email: '' })
+      setNewClient({ name: '', phone: '', email: '' })
       loadClients()
     } catch (e) {
       toast.error('Erro ao cadastrar cliente')
@@ -65,8 +69,8 @@ export default function Clientes() {
 
   const filteredClients = clients.filter(
     (client) =>
-      client.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      client.email.toLowerCase().includes(searchTerm.toLowerCase()),
+      (client.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (client.email || '').toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
   const handleExport = () => {
@@ -104,22 +108,22 @@ export default function Clientes() {
                   </Label>
                   <Input
                     id="name"
-                    value={newClient.nome}
+                    value={newClient.name}
                     onChange={(e) =>
-                      setNewClient({ ...newClient, nome: e.target.value })
+                      setNewClient({ ...newClient, name: e.target.value })
                     }
                     className="col-span-3"
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="contact" className="text-right">
-                    Contato
+                    Telefone/Contato
                   </Label>
                   <Input
                     id="contact"
-                    value={newClient.contato}
+                    value={newClient.phone}
                     onChange={(e) =>
-                      setNewClient({ ...newClient, contato: e.target.value })
+                      setNewClient({ ...newClient, phone: e.target.value })
                     }
                     className="col-span-3"
                   />
@@ -165,9 +169,9 @@ export default function Clientes() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
-                <TableHead>Contato</TableHead>
+                <TableHead>Telefone</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Cadastro</TableHead>
+                <TableHead>CNPJ/Tax ID</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -175,12 +179,10 @@ export default function Clientes() {
               {filteredClients.length > 0 ? (
                 filteredClients.map((client) => (
                   <TableRow key={client.id} className="hover:bg-slate-50">
-                    <TableCell className="font-medium">{client.nome}</TableCell>
-                    <TableCell>{client.contato}</TableCell>
-                    <TableCell>{client.email}</TableCell>
-                    <TableCell>
-                      {new Date(client.created_at).toLocaleDateString('pt-BR')}
-                    </TableCell>
+                    <TableCell className="font-medium">{client.name}</TableCell>
+                    <TableCell>{client.phone || '-'}</TableCell>
+                    <TableCell>{client.email || '-'}</TableCell>
+                    <TableCell>{client.cnpj || '-'}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="sm">
                         <Eye className="h-4 w-4 mr-1" /> Detalhes

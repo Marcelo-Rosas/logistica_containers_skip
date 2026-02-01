@@ -21,7 +21,7 @@ import {
   LogIn,
   Calendar,
 } from 'lucide-react'
-import { getEvents } from '@/lib/mock-service'
+import { getEvents } from '@/services/container'
 import { LogisticsEvent } from '@/lib/types'
 import { NewExitEventDialog } from '@/components/NewExitEventDialog'
 import { NewEntryEventDialog } from '@/components/NewEntryEventDialog'
@@ -65,7 +65,10 @@ export default function EventsPage() {
     (acc, curr) => acc + (curr.volume_m3 || 0),
     0,
   )
-  const totalValue = events.reduce((acc, curr) => acc + (curr.value || 0), 0)
+  const totalValue = events.reduce(
+    (acc, curr) => acc + (curr.weight_kg || 0),
+    0,
+  ) // Changed from value to weight as value is not reliable
 
   const handleExportCSV = () => {
     const headers = [
@@ -160,16 +163,16 @@ export default function EventsPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Valor Alocado</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Peso Movimentado
+            </CardTitle>
             <ArrowDownRight className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              R$ {totalValue.toLocaleString('pt-BR')}
+              {totalValue.toLocaleString('pt-BR')} kg
             </div>
-            <p className="text-xs text-muted-foreground">
-              Valor total das mercadorias
-            </p>
+            <p className="text-xs text-muted-foreground">Peso acumulado</p>
           </CardContent>
         </Card>
       </div>

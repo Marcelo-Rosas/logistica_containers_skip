@@ -7,31 +7,7 @@ import {
   LogisticsEvent,
   InventoryItem,
 } from '@/lib/types'
-
-// Helper to get current user's organization_id
-const getOrganizationId = async () => {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) throw new Error('User not authenticated')
-
-  if (user.user_metadata?.organization_id) {
-    return user.user_metadata.organization_id
-  }
-
-  const { data: userData, error } = await supabase
-    .from('users')
-    .select('organization_id')
-    .eq('id', user.id)
-    .single()
-
-  if (error || !userData) {
-    console.error('Error fetching organization_id', error)
-    throw new Error('Organization ID not found for user')
-  }
-
-  return userData.organization_id
-}
+import { getOrganizationId } from './master-data'
 
 // Helper to determine strategy
 const determineStrategy = (items: any[]): BillingStrategy => {
@@ -217,12 +193,14 @@ export const getEvents = async (): Promise<LogisticsEvent[]> => {
     container_code: evt.containers?.container_number,
     sku: (evt.metadata as any)?.sku || 'UNKNOWN',
     quantity: (evt.metadata as any)?.quantity || 0,
-    volume_m3: (evt.metadata as any)?.volume_removed,
-    weight_kg: (evt.metadata as any)?.weight_removed,
-    timestamp: evt.created_at || new Date().toISOString(),
-    responsible: (evt.metadata as any)?.responsible,
-    doc_number: (evt.metadata as any)?.doc_number,
-    destination: (evt.metadata as any)?.destination,
+    volume_m3: (evt.metadata as any)?.volume_removed || 0,
+    weight_kg: (evt.metadata as any)?.weight_removed || 0,
+    timestamp: evt.performed_at || evt.created_at || new Date().toISOString(),
+    responsible: (evt.metadata as any)?.responsible || 'Sistema',
+    doc_number: (evt.metadata as any)?.doc_number || '-',
+    destination:
+      evt.to_location_id || (evt.metadata as any)?.destination || '-',
+    value: 0,
   }))
 }
 
@@ -246,6 +224,45 @@ export const createExitEvent = async (params: {
 
   if (error) throw error
   return true
+}
+
+export const registerEntry = async (data: {
+  client: string
+  container: string
+  data_entrada: string
+}) => {
+  // 1. Update Container to assign Client and set Active
+  const { error: updateError } = await supabase
+    .from('containers')
+    .update({
+      status: 'Ativo',
+      consignee_id: data.client,
+      storage_start_date: data.data_entrada,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', data.container)
+
+  if (updateError) throw updateError
+
+  const orgId = await getOrganizationId()
+
+  // 2. Create Movement (Entry)
+  const { error: moveError } = await supabase
+    .from('container_movements')
+    .insert({
+      container_id: data.container,
+      movement_type: 'entry',
+      description: 'Entrada no Armazém (Alocação)',
+      organization_id: orgId || undefined,
+      performed_at: data.data_entrada,
+      metadata: {
+        doc_number: 'ENTRY',
+        destination: 'WAREHOUSE',
+      },
+    })
+
+  if (moveError) throw moveError
+  return { success: true, message: 'Entrada registrada com sucesso' }
 }
 
 export const createContainerWithItems = async (

@@ -7,6 +7,32 @@ import {
   Supplier,
 } from '@/lib/types'
 
+// Helper to get current user's organization_id
+export const getOrganizationId = async () => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) throw new Error('User not authenticated')
+
+  if (user.user_metadata?.organization_id) {
+    return user.user_metadata.organization_id
+  }
+
+  const { data: userData, error } = await supabase
+    .from('users')
+    .select('organization_id')
+    .eq('id', user.id)
+    .single()
+
+  if (error || !userData) {
+    // Fallback or throw
+    console.warn('Organization ID lookup failed', error)
+    return null
+  }
+
+  return userData.organization_id
+}
+
 export const getContainerTypes = async (): Promise<ContainerType[]> => {
   const { data, error } = await supabase
     .from('container_types')
@@ -51,7 +77,48 @@ export const getCustomers = async (): Promise<Client[]> => {
     .order('name')
 
   if (error) throw error
-  return data
+
+  // Map database fields to Client type if necessary
+  return data.map((c) => ({
+    id: c.id,
+    name: c.name,
+    trade_name: c.trade_name,
+    email: c.email,
+    phone: c.phone,
+    cnpj: c.tax_id,
+  }))
+}
+
+export const createCustomer = async (
+  customer: Partial<Client>,
+): Promise<Client> => {
+  const orgId = await getOrganizationId()
+
+  const payload = {
+    name: customer.name,
+    email: customer.email,
+    phone: customer.phone,
+    tax_id: customer.cnpj, // Mapping cnpj to tax_id
+    organization_id: orgId,
+    is_active: true,
+  }
+
+  const { data, error } = await supabase
+    .from('customers')
+    .insert(payload)
+    .select()
+    .single()
+
+  if (error) throw error
+
+  return {
+    id: data.id,
+    name: data.name,
+    trade_name: data.trade_name,
+    email: data.email,
+    phone: data.phone,
+    cnpj: data.tax_id,
+  }
 }
 
 export const getSuppliers = async (): Promise<Supplier[]> => {
