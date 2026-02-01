@@ -22,6 +22,7 @@ import BLRegister from './pages/BLRegister'
 import BLDetails from './pages/BLDetails'
 import Divergences from './pages/Divergences'
 import Diagnostics from './pages/Diagnostics'
+import Profile from './pages/Profile'
 
 // Auth
 import { AuthProvider } from './hooks/use-auth'
@@ -59,6 +60,9 @@ const App = () => (
               <Route path="/faturamento" element={<Faturamento />} />
               <Route path="/relatorios" element={<Relatorios />} />
               <Route path="/configuracoes" element={<Configuracoes />} />
+
+              {/* Profile Route */}
+              <Route path="/profile" element={<Profile />} />
 
               {/* Diagnostics Route */}
               <Route path="/diagnostics" element={<Diagnostics />} />

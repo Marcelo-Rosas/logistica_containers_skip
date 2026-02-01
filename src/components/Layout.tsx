@@ -15,7 +15,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
-import { Bell, Search, LogOut } from 'lucide-react'
+import { Bell, Search, LogOut, User, Settings } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,14 +26,28 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
+import { useEffect, useState } from 'react'
+import { getProfile } from '@/services/profile'
 
 export default function Layout() {
   const location = useLocation()
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Fetch profile to get avatar
+    if (user?.id) {
+      getProfile(user.id).then(({ data }) => {
+        if (data?.avatar_url) {
+          setAvatarUrl(data.avatar_url)
+        }
+      })
+    }
+  }, [user])
 
   const handleLogout = async () => {
     try {
@@ -113,6 +127,7 @@ export default function Layout() {
                   className="relative h-8 w-8 rounded-full"
                 >
                   <Avatar className="h-8 w-8">
+                    <AvatarImage src={avatarUrl || undefined} />
                     <AvatarFallback className="bg-primary text-primary-foreground">
                       {userInitials}
                     </AvatarFallback>
@@ -131,8 +146,14 @@ export default function Layout() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Perfil</DropdownMenuItem>
-                <DropdownMenuItem>Configurações</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/profile')}>
+                  <User className="mr-2 h-4 w-4" />
+                  Perfil
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/configuracoes')}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  Configurações
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
