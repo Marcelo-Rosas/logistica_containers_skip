@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getContainer, getInventory, getEvents } from '@/services/container'
+import {
+  getContainer,
+  getContainerItems,
+  getEvents,
+} from '@/services/container'
 import {
   Container,
-  InventoryItem,
+  ContainerItem,
   LogisticsEvent,
   BillingStrategy,
 } from '@/lib/types'
@@ -29,33 +33,39 @@ import {
   Cuboid,
   Scale,
   Package,
+  Edit,
+  MapPin,
+  Warehouse,
 } from 'lucide-react'
 import { NewExitEventDialog } from '@/components/NewExitEventDialog'
+import { ContainerFormDialog } from '@/components/ContainerFormDialog'
 import { cn } from '@/lib/utils'
 import { Progress } from '@/components/ui/progress'
+import { Skeleton } from '@/components/ui/skeleton'
 
 export default function ContainerDetails() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [container, setContainer] = useState<Container | null>(null)
-  const [inventory, setInventory] = useState<InventoryItem[]>([])
+  const [items, setItems] = useState<ContainerItem[]>([])
   const [events, setEvents] = useState<LogisticsEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [isExitDialogOpen, setIsExitDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
   const loadData = async () => {
     if (!id) return
     try {
       setLoading(true)
       const containerData = await getContainer(id)
-      setContainer({ ...containerData })
+      setContainer(containerData)
 
-      const [inventoryData, eventsData] = await Promise.all([
-        getInventory(containerData.id),
+      const [itemsData, eventsData] = await Promise.all([
+        getContainerItems(containerData.id),
         getEvents(),
       ])
 
-      setInventory(inventoryData)
+      setItems(itemsData)
       setEvents(eventsData.filter((e) => e.container_id === containerData.id))
     } catch (error) {
       console.error(error)
@@ -68,39 +78,49 @@ export default function ContainerDetails() {
     loadData()
   }, [id])
 
-  if (loading) return <div className="p-8">Carregando detalhes...</div>
+  if (loading) {
+    return (
+      <div className="space-y-4 p-4">
+        <Skeleton className="h-8 w-1/3" />
+        <Skeleton className="h-32 w-full" />
+        <div className="grid grid-cols-4 gap-4">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      </div>
+    )
+  }
+
   if (!container) return <div className="p-8">Container não encontrado.</div>
 
   const strategy = container.active_strategy || 'VOLUME'
+  const occupancyPercentage = container.occupancy_rate || 0
 
   let currentMetric = 0
   let totalMetric = 1
   let metricLabel = ''
   let metricUnit = ''
   let metricIcon = <Cuboid className="h-4 w-4" />
-  let originalLabel = ''
 
   if (strategy === 'VOLUME') {
-    currentMetric = container.total_volume_m3
-    totalMetric = container.initial_capacity_m3
+    currentMetric = container.total_cbm || 0
+    totalMetric = container.initial_capacity_cbm || 1
     metricLabel = 'Volume Ocupado'
     metricUnit = 'm³'
-    metricIcon = <Cuboid className="h-4 w-4" />
-    originalLabel = 'Capacidade Total'
   } else if (strategy === 'WEIGHT') {
-    currentMetric = container.total_net_weight_kg
-    totalMetric = container.initial_total_net_weight_kg
+    currentMetric = container.total_net_weight || 0
+    totalMetric = container.initial_total_net_weight || 1
     metricLabel = 'Peso Líquido Atual'
     metricUnit = 'kg'
     metricIcon = <Scale className="h-4 w-4" />
-    originalLabel = 'Peso Original (Packing List)'
   } else {
-    currentMetric = container.total_quantity
-    totalMetric = container.initial_quantity
+    currentMetric = container.total_volumes || 0
+    totalMetric = container.initial_total_volumes || 1
     metricLabel = 'Itens Restantes'
     metricUnit = 'und'
     metricIcon = <Package className="h-4 w-4" />
-    originalLabel = 'Quantidade Original'
   }
 
   const getStrategyBadgeColor = (strat: BillingStrategy) => {
@@ -116,11 +136,6 @@ export default function ContainerDetails() {
     }
   }
 
-  const occupancyPercentage = Math.min(
-    100,
-    Math.round((currentMetric / totalMetric) * 100),
-  )
-
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center gap-4">
@@ -130,7 +145,7 @@ export default function ContainerDetails() {
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h2 className="text-3xl font-bold tracking-tight">
-              {container.codigo}
+              {container.container_number}
             </h2>
             <Badge variant="outline" className="text-lg px-2">
               {container.status}
@@ -151,16 +166,24 @@ export default function ContainerDetails() {
             )}
           </div>
           <p className="text-muted-foreground mt-1">
-            {container.tipo} • {container.cliente_nome || 'Sem Cliente'}
+            {container.type_details?.name ||
+              container.container_type ||
+              'Tipo N/A'}{' '}
+            • {container.consignee?.name || 'Sem Cliente'}
           </p>
         </div>
-        <Button onClick={() => setIsExitDialogOpen(true)}>
-          <LogOut className="mr-2 h-4 w-4" /> Registrar Saída
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsEditDialogOpen(true)}>
+            <Edit className="mr-2 h-4 w-4" /> Editar
+          </Button>
+          <Button onClick={() => setIsExitDialogOpen(true)}>
+            <LogOut className="mr-2 h-4 w-4" /> Registrar Saída
+          </Button>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
-        {container.bl_id && (
+        {container.bl_number && (
           <Card className="bg-slate-50 border-blue-100">
             <CardContent className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -172,33 +195,33 @@ export default function ContainerDetails() {
                     Documento de Origem (BL)
                   </p>
                   <p className="text-lg font-bold text-slate-900">
-                    {container.bl_number || 'N/A'}
+                    {container.bl_number}
                   </p>
                 </div>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate(`/bl/${container.bl_id}`)}
-              >
-                Ver Documento <ExternalLink className="ml-2 h-3 w-3" />
-              </Button>
             </CardContent>
           </Card>
         )}
 
         <Card className="bg-slate-50 border-slate-200">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 bg-slate-200 rounded-lg">
-              <ShieldCheck className="h-5 w-5 text-slate-700" />
+          <CardContent className="p-4 flex flex-col justify-center gap-2">
+            <div className="flex items-center gap-2">
+              <Warehouse className="h-4 w-4 text-slate-500" />
+              <span className="text-sm font-medium text-slate-500">
+                Armazém:
+              </span>
+              <span className="font-semibold text-slate-900">
+                {container.warehouse?.name || 'N/A'}
+              </span>
             </div>
-            <div>
-              <p className="text-sm font-medium text-slate-500">
-                Lacre de Segurança (Seal)
-              </p>
-              <p className="text-lg font-bold text-slate-900">
-                {container.seal || 'Não informado'}
-              </p>
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-slate-500" />
+              <span className="text-sm font-medium text-slate-500">
+                Localização:
+              </span>
+              <span className="font-semibold text-slate-900">
+                {container.storage_location?.code || 'N/A'}
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -226,7 +249,7 @@ export default function ContainerDetails() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <PackageCheck className="h-4 w-4" /> {originalLabel}
+              <PackageCheck className="h-4 w-4" /> Capacidade Total
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -236,15 +259,13 @@ export default function ContainerDetails() {
               })}{' '}
               {metricUnit}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Estado Inicial / Referência
-            </p>
+            <p className="text-xs text-muted-foreground">Referência Inicial</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Ocupação Real ({strategy})
+              Ocupação Real
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -281,32 +302,32 @@ export default function ContainerDetails() {
                     <TableHead>SKU / Model</TableHead>
                     <TableHead>Descrição</TableHead>
                     <TableHead>Embalagem</TableHead>
-                    <TableHead className="text-right">Qtd (Pcs)</TableHead>
+                    <TableHead className="text-right">Disponível</TableHead>
+                    <TableHead className="text-right">Reservado</TableHead>
                     <TableHead className="text-right">Unit Vol (m³)</TableHead>
-                    <TableHead className="text-right">Peso Líq (kg)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {inventory.length > 0 ? (
-                    inventory.map((item) => (
+                  {items.length > 0 ? (
+                    items.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell className="font-mono font-medium">
-                          {item.sku}
+                          {item.product_code}
                         </TableCell>
-                        <TableCell>{item.name}</TableCell>
+                        <TableCell>{item.product_name}</TableCell>
                         <TableCell className="text-xs uppercase text-muted-foreground">
                           {item.packaging_type || '-'}
                         </TableCell>
-                        <TableCell className="text-right font-bold">
-                          {item.quantity}
+                        <TableCell className="text-right font-bold text-emerald-600">
+                          {item.available_quantity}
+                        </TableCell>
+                        <TableCell className="text-right font-medium text-amber-600">
+                          {item.reserved_quantity || 0}
                         </TableCell>
                         <TableCell className="text-right">
-                          {item.unit_volume_m3
-                            ? item.unit_volume_m3.toFixed(3)
+                          {item.cbm
+                            ? (item.cbm / item.original_quantity).toFixed(3)
                             : '-'}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {item.unit_net_weight_kg?.toLocaleString() || '-'}
                         </TableCell>
                       </TableRow>
                     ))
@@ -339,7 +360,6 @@ export default function ContainerDetails() {
                     <TableHead>SKU</TableHead>
                     <TableHead>Qtd</TableHead>
                     <TableHead>Vol. (m³)</TableHead>
-                    <TableHead>Peso (kg)</TableHead>
                     <TableHead>Doc</TableHead>
                     <TableHead>Resp.</TableHead>
                   </TableRow>
@@ -368,9 +388,6 @@ export default function ContainerDetails() {
                         <TableCell>{event.sku}</TableCell>
                         <TableCell>{event.quantity}</TableCell>
                         <TableCell>{event.volume_m3?.toFixed(3)}</TableCell>
-                        <TableCell>
-                          {event.weight_kg?.toLocaleString()}
-                        </TableCell>
                         <TableCell>{event.doc_number}</TableCell>
                         <TableCell>{event.responsible}</TableCell>
                       </TableRow>
@@ -378,7 +395,7 @@ export default function ContainerDetails() {
                   ) : (
                     <TableRow>
                       <TableCell
-                        colSpan={8}
+                        colSpan={7}
                         className="text-center h-24 text-muted-foreground"
                       >
                         Nenhum evento registrado.
@@ -397,6 +414,13 @@ export default function ContainerDetails() {
         onOpenChange={setIsExitDialogOpen}
         onSuccess={loadData}
         initialContainerId={container.id}
+      />
+
+      <ContainerFormDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        onSuccess={loadData}
+        containerToEdit={container}
       />
     </div>
   )

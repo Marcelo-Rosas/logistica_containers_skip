@@ -2,11 +2,39 @@
 
 export type Client = {
   id: string
-  nome: string
-  contato?: string
-  email: string
-  created_at?: string
-  cnpj?: string
+  name: string
+  trade_name?: string | null
+  email?: string | null
+  phone?: string | null
+  cnpj?: string | null
+}
+
+export type Supplier = {
+  id: string
+  name: string
+  trade_name?: string | null
+  email?: string | null
+}
+
+export type ContainerType = {
+  code: string
+  name: string
+  nominal_volume_m3: number | null
+  description?: string | null
+}
+
+export type Warehouse = {
+  id: string
+  name: string
+  code: string
+}
+
+export type StorageLocation = {
+  id: string
+  code: string
+  type?: string | null
+  warehouse_id: string
+  is_occupied?: boolean | null
 }
 
 export type ContainerStatus =
@@ -22,50 +50,105 @@ export type ContainerStatus =
 
 export type BillingStrategy = 'VOLUME' | 'WEIGHT' | 'QUANTITY'
 
-export type Container = {
+// Represents the View: public.containers_stats_view
+export type ContainerStats = {
   id: string
-  cliente_id?: string
-  cliente_nome?: string
-  bl_id?: string
-  bl_number?: string
-  codigo: string
-  tipo?: string
+  container_number: string
+  container_code?: string
+  bl_number?: string | null
+  client_id?: string | null
+  client_name?: string | null
   status: ContainerStatus
-  occupancy_rate: number
-  sku_count: number
-
-  // Metrics (Current State)
-  total_volume_m3: number
-  total_weight_kg: number // Gross or Net depending on context, we map Net here mostly
-  total_net_weight_kg: number
-  total_quantity: number
-
-  // Initial / Capacities for Calculation (Original State)
-  initial_capacity_m3: number
-  initial_total_net_weight_kg: number
-  initial_quantity: number
-
-  // Computed
-  active_strategy?: BillingStrategy
-
-  created_at: string
-  arrival_date?: string
-  storage_start_date?: string
-  seal?: string
-  base_monthly_cost: number
+  container_type: string | null
+  container_type_name?: string | null
+  occupancy_percentage: number | null
+  items_count: number | null
+  total_gross_weight: number | null
+  total_available: number | null
+  total_released: number | null
+  nominal_volume_m3: number | null
+  used_volume: number | null
+  start_date?: string | null
+  yard_location?: string | null
 }
 
-export type InventoryItem = {
+// Represents the Table: public.containers
+export type Container = {
+  id: string
+  container_number: string
+  bl_number?: string | null
+  status: ContainerStatus
+  container_type?: string | null
+
+  // Relations (IDs)
+  organization_id: string
+  consignee_id?: string | null
+  supplier_id?: string | null
+  warehouse_id?: string | null
+  storage_location_id?: string | null
+
+  // Metrics
+  total_cbm: number | null
+  total_gross_weight: number | null
+  total_net_weight: number | null
+  total_volumes: number | null
+
+  // Initial / Capacities
+  initial_capacity_cbm: number | null
+  initial_total_net_weight: number | null
+  initial_total_volumes: number | null
+  base_monthly_cost: number | null
+
+  // Timestamps
+  arrival_date?: string | null
+  storage_start_date?: string | null
+  created_at: string
+  updated_at?: string | null
+
+  // Extended Data (Joined)
+  consignee?: Client
+  supplier?: Supplier
+  warehouse?: Warehouse
+  storage_location?: StorageLocation
+  type_details?: ContainerType
+
+  // Computeds
+  occupancy_rate?: number
+  active_strategy?: BillingStrategy
+  sku_count?: number
+}
+
+export type ContainerItem = {
   id: string
   container_id: string
+  product_code: string
+  product_name: string
+  description?: string | null
+
+  // Quantities
+  original_quantity: number
+  available_quantity: number
+  reserved_quantity: number | null
+  released_quantity: number | null
+  damaged_quantity: number | null
+
+  // Metrics
+  cbm: number | null
+  unit_net_weight: number | null
+  total_net_weight: number | null
+
+  packaging_type?: string | null
+  created_at?: string | null
+}
+
+// Deprecated / Compatibility types (to be phased out or mapped)
+export type InventoryItem = ContainerItem & {
   sku: string
   name: string
   quantity: number
   unit_volume_m3: number
-  unit_value?: number
   unit_net_weight_kg: number
   total_net_weight_kg: number
-  packaging_type?: string
 }
 
 export type LogisticsEvent = {
@@ -83,26 +166,6 @@ export type LogisticsEvent = {
   timestamp: string
 }
 
-export type InvoiceItem = {
-  id: string
-  description: string
-  amount: number
-  type: 'storage' | 'exit_fee' | 'handling' | 'other'
-  reference_id?: string
-  calculation_method?: 'pro_rata' | 'volume_snapshot'
-  billing_strategy?: BillingStrategy
-
-  // Meta for display
-  days_pro_rated?: number
-  snapshot_date?: string
-  metric_used?: number
-  metric_total?: number
-  metric_unit?: string
-  occupancy_percentage?: number
-  base_cost?: number
-  savings?: number
-}
-
 export type Invoice = {
   id: string
   client_id: string
@@ -113,34 +176,7 @@ export type Invoice = {
   status: 'Draft' | 'Sent' | 'Paid' | 'Overdue'
   due_date: string
   created_at: string
-  items: InvoiceItem[]
-}
-
-export type DashboardStats = {
-  activeAllocations: number
-  occupancyRate: number
-  activeClients: number
-  pendingExitCosts: number
-  nextBillingDate: string
-  statusDistribution: {
-    status: string
-    count: number
-    fill: string
-  }[]
-}
-
-export type ActivityLog = {
-  id: string
-  message: string
-  timestamp: string
-  type: 'info' | 'success' | 'warning'
-}
-
-export type BillOfLading = {
-  id: string
-  number: string
-  client_id?: string
-  client_name?: string
+  items: any[]
 }
 
 export type ContainerTypeDef = {

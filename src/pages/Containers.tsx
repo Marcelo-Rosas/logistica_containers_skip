@@ -1,54 +1,43 @@
 import { useEffect, useState } from 'react'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { getContainers } from '@/services/container'
-import { Container, ContainerTypeDef } from '@/lib/types'
-import { Plus, UserPlus, FileText, Loader2, AlertCircle } from 'lucide-react'
+import { ContainerStats } from '@/lib/types'
+import { Plus, Loader2, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { ContainerCard } from '@/components/ContainerCard'
-import { NewExitEventDialog } from '@/components/NewExitEventDialog'
-
-const containerTypes: ContainerTypeDef[] = [
-  { id: '20ft', name: "Dry Box 20'", volume_m3: 33.2, price: 2500 },
-  { id: '40ft', name: "Dry Box 40'", volume_m3: 67.7, price: 3000 },
-  { id: '40hc', name: "Dry Box 40' HC", volume_m3: 76.4, price: 3200 },
-]
+import { ContainerFormDialog } from '@/components/ContainerFormDialog'
 
 export default function Containers() {
-  const [containers, setContainers] = useState<Container[]>([])
+  const [containers, setContainers] = useState<ContainerStats[]>([])
   const [filter, setFilter] = useState('todos')
   const [search, setSearch] = useState('')
   const [isNewContainerOpen, setIsNewContainerOpen] = useState(false)
-  const [isExitDialogOpen, setIsExitDialogOpen] = useState(false)
-  const [selectedContainerId, setSelectedContainerId] = useState<string | null>(
-    null,
-  )
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [filter])
+
+  // Simple debounce for search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadData()
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [search])
 
   const loadData = async () => {
     setLoading(true)
     try {
-      const data = await getContainers()
+      const data = await getContainers({ status: filter, search })
       setContainers(data)
     } catch (e) {
       toast.error('Erro ao carregar containers')
@@ -57,32 +46,13 @@ export default function Containers() {
     }
   }
 
-  const handleCreateContainer = async () => {
-    toast.error(
-      'Funcionalidade de criação via Supabase ainda não implementada neste demo',
-    )
+  const handleSimulate = (container: ContainerStats) => {
+    toast.info(`Simulação para ${container.container_number} iniciada...`)
   }
 
-  const handleExitTrigger = (container: Container) => {
-    setSelectedContainerId(container.id)
-    setIsExitDialogOpen(true)
+  const handleExport = (container: ContainerStats) => {
+    toast.success(`Exportando dados de ${container.container_number}...`)
   }
-
-  const handleSimulate = (container: Container) => {
-    toast.info(`Simulação de medição para ${container.codigo} iniciada...`)
-  }
-
-  const handleExport = (container: Container) => {
-    toast.success(`Exportando dados de ${container.codigo}...`)
-  }
-
-  const filteredContainers = containers.filter((c) => {
-    const matchesSearch = c.codigo.toLowerCase().includes(search.toLowerCase())
-    const matchesFilter =
-      filter === 'todos' ||
-      c.status.toLowerCase().includes(filter.toLowerCase())
-    return matchesSearch && matchesFilter
-  })
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -92,7 +62,7 @@ export default function Containers() {
             Containers Físicos
           </h2>
           <p className="text-muted-foreground mt-1">
-            Gerencie o estoque e status da frota (Supabase Conectado)
+            Gerencie o estoque e status da frota (Supabase Integrado)
           </p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
@@ -102,10 +72,10 @@ export default function Containers() {
         </div>
       </div>
 
-      <div className="flex gap-2 items-center bg-card p-4 rounded-lg border shadow-sm">
+      <div className="flex gap-2 items-center bg-card p-4 rounded-lg border shadow-sm flex-wrap">
         <Input
-          placeholder="Buscar ID..."
-          className="max-w-xs"
+          placeholder="Buscar (Nº Container, BL ou Cliente)..."
+          className="max-w-xs min-w-[200px]"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -119,6 +89,7 @@ export default function Containers() {
             <SelectItem value="parcial">Parciais</SelectItem>
             <SelectItem value="vazio">Vazios</SelectItem>
             <SelectItem value="pendente">Pendentes</SelectItem>
+            <SelectItem value="cheio">Cheios</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -128,13 +99,12 @@ export default function Containers() {
           <Loader2 className="h-10 w-10 animate-spin text-primary/50" />
           <p>Carregando containers...</p>
         </div>
-      ) : filteredContainers.length > 0 ? (
+      ) : containers.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredContainers.map((container) => (
+          {containers.map((container) => (
             <ContainerCard
               key={container.id}
               container={container}
-              onExit={handleExitTrigger}
               onSimulate={handleSimulate}
               onExport={handleExport}
             />
@@ -147,16 +117,15 @@ export default function Containers() {
           </div>
           <h3 className="text-lg font-medium">Nenhum container encontrado</h3>
           <p className="text-muted-foreground text-sm mt-1">
-            Tente ajustar os filtros ou cadastre um novo container via BL.
+            Tente ajustar os filtros ou cadastre um novo container.
           </p>
         </div>
       )}
 
-      <NewExitEventDialog
-        open={isExitDialogOpen}
-        onOpenChange={setIsExitDialogOpen}
+      <ContainerFormDialog
+        open={isNewContainerOpen}
+        onOpenChange={setIsNewContainerOpen}
         onSuccess={loadData}
-        initialContainerId={selectedContainerId || undefined}
       />
     </div>
   )

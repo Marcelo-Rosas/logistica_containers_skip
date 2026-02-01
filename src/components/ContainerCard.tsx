@@ -16,32 +16,30 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Container } from '@/lib/types'
+import { ContainerStats } from '@/lib/types'
 import {
   Box,
   CheckCircle2,
   AlertCircle,
   Clock,
   Package,
-  Ruler,
-  Weight,
   MoreVertical,
   Ship,
   Eye,
   LogOut,
   Activity,
   Download,
-  Scale,
   Cuboid,
+  Scale,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useNavigate } from 'react-router-dom'
 
 interface ContainerCardProps {
-  container: Container
-  onExit: (container: Container) => void
-  onSimulate: (container: Container) => void
-  onExport: (container: Container) => void
+  container: ContainerStats
+  onExit?: (container: ContainerStats) => void
+  onSimulate?: (container: ContainerStats) => void
+  onExport?: (container: ContainerStats) => void
 }
 
 export function ContainerCard({
@@ -91,6 +89,7 @@ export function ContainerCard({
     }
   }
 
+  const occupancy = container.occupancy_percentage || 0
   const getOccupancyColor = (rate: number) => {
     if (rate > 75) return 'bg-emerald-500'
     if (rate > 40) return 'bg-amber-500'
@@ -101,13 +100,6 @@ export function ContainerCard({
     navigate(`/containers/${container.id}`)
   }
 
-  // Use active strategy if available, otherwise guess based on fields
-  const strategy = container.active_strategy || 'VOLUME'
-
-  // Note: active_strategy is computed in getContainer detail,
-  // but might be missing in list view if not populated.
-  // However, occupancy_rate is main visual indicator.
-
   return (
     <Card
       className="hover:border-primary/50 transition-colors group relative overflow-hidden cursor-pointer"
@@ -117,7 +109,7 @@ export function ContainerCard({
       <CardHeader className="flex flex-row items-start justify-between pb-2 pl-6">
         <div className="space-y-1">
           <CardTitle className="font-mono text-xl tracking-tight flex items-center gap-2">
-            {container.codigo}
+            {container.container_number}
             <Badge
               variant="outline"
               className={cn(
@@ -133,11 +125,13 @@ export function ContainerCard({
           </CardTitle>
           <div className="text-sm text-muted-foreground flex flex-col">
             <span className="font-medium text-foreground truncate max-w-[200px]">
-              {container.cliente_nome || 'Sem cliente'}
+              {container.client_name || 'Sem cliente'}
             </span>
-            <span className="text-xs flex items-center gap-1">
-              <Ship className="h-3 w-3" /> BL: {container.bl_number}
-            </span>
+            {container.bl_number && (
+              <span className="text-xs flex items-center gap-1">
+                <Ship className="h-3 w-3" /> BL: {container.bl_number}
+              </span>
+            )}
           </div>
         </div>
 
@@ -146,7 +140,7 @@ export function ContainerCard({
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 z-10" // Ensure visibility on mobile
+              className="h-8 w-8 z-10"
               onClick={(e) => e.stopPropagation()}
             >
               <MoreVertical className="h-4 w-4" />
@@ -163,31 +157,37 @@ export function ContainerCard({
             >
               <Eye className="mr-2 h-4 w-4" /> Ver detalhes
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation()
-                onExit(container)
-              }}
-            >
-              <LogOut className="mr-2 h-4 w-4" /> Registrar saída
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation()
-                onSimulate(container)
-              }}
-            >
-              <Activity className="mr-2 h-4 w-4" /> Simular medição
-            </DropdownMenuItem>
+            {onExit && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onExit(container)
+                }}
+              >
+                <LogOut className="mr-2 h-4 w-4" /> Registrar saída
+              </DropdownMenuItem>
+            )}
+            {onSimulate && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onSimulate(container)
+                }}
+              >
+                <Activity className="mr-2 h-4 w-4" /> Simular medição
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation()
-                onExport(container)
-              }}
-            >
-              <Download className="mr-2 h-4 w-4" /> Exportar
-            </DropdownMenuItem>
+            {onExport && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onExport(container)
+                }}
+              >
+                <Download className="mr-2 h-4 w-4" /> Exportar
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </CardHeader>
@@ -196,30 +196,30 @@ export function ContainerCard({
         <div className="space-y-4">
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs mb-1">
-              <span className="text-muted-foreground">
-                Ocupação ({strategy})
-              </span>
-              <span className="font-medium">{container.occupancy_rate}%</span>
+              <span className="text-muted-foreground">Ocupação</span>
+              <span className="font-medium">{occupancy}%</span>
             </div>
             <Progress
-              value={container.occupancy_rate}
+              value={occupancy}
               className="h-2"
-              indicatorClassName={getOccupancyColor(container.occupancy_rate)}
+              indicatorClassName={getOccupancyColor(occupancy)}
             />
           </div>
 
           <div className="grid grid-cols-3 gap-2 py-2">
             <div className="flex flex-col items-center justify-center p-2 bg-slate-50 rounded-md border text-center">
               <Package className="h-4 w-4 text-muted-foreground mb-1" />
-              <span className="text-sm font-bold">{container.sku_count}</span>
+              <span className="text-sm font-bold">
+                {container.items_count || 0}
+              </span>
               <span className="text-[10px] text-muted-foreground uppercase">
-                SKUs
+                Itens
               </span>
             </div>
             <div className="flex flex-col items-center justify-center p-2 bg-slate-50 rounded-md border text-center">
               <Cuboid className="h-4 w-4 text-muted-foreground mb-1" />
               <span className="text-sm font-bold">
-                {Number(container.total_volume_m3).toFixed(1)}
+                {Number(container.used_volume || 0).toFixed(1)}
               </span>
               <span className="text-[10px] text-muted-foreground uppercase">
                 m³
@@ -228,7 +228,7 @@ export function ContainerCard({
             <div className="flex flex-col items-center justify-center p-2 bg-slate-50 rounded-md border text-center">
               <Scale className="h-4 w-4 text-muted-foreground mb-1" />
               <span className="text-sm font-bold">
-                {(container.total_weight_kg / 1000).toFixed(1)}
+                {((container.total_gross_weight || 0) / 1000).toFixed(1)}
               </span>
               <span className="text-[10px] text-muted-foreground uppercase">
                 Ton (B)
@@ -239,12 +239,15 @@ export function ContainerCard({
       </CardContent>
 
       <CardFooter className="bg-slate-50/50 p-3 pl-6 text-xs text-muted-foreground border-t flex justify-between">
-        <span>Tipo: {container.tipo || container.capacidade}</span>
         <span>
-          Entrada:{' '}
-          {container.arrival_date
-            ? new Date(container.arrival_date).toLocaleDateString('pt-BR')
-            : '-'}
+          {container.container_type_name ||
+            container.container_type ||
+            'Unknown'}
+        </span>
+        <span>
+          {container.yard_location
+            ? `Loc: ${container.yard_location}`
+            : 'Sem local'}
         </span>
       </CardFooter>
     </Card>
