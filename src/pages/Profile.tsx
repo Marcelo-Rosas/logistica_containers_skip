@@ -82,7 +82,7 @@ export default function Profile() {
         })
       }
     } catch (error) {
-      console.error(error)
+      console.error('Error loading profile:', error)
       toast.error('Erro inesperado ao carregar dados.')
     } finally {
       setLoading(false)
@@ -102,8 +102,10 @@ export default function Profile() {
       form.setValue('avatar_url', publicUrl, { shouldDirty: true })
       toast.success('Imagem carregada com sucesso!')
     } catch (error: any) {
-      console.error(error)
-      toast.error(`Erro no upload: ${error.message}`)
+      // Sanitize error before logging to prevent cloning issues
+      const errorMessage = error.message || 'Erro desconhecido'
+      console.error('Upload error:', errorMessage)
+      toast.error(`Erro no upload: ${errorMessage}`)
     } finally {
       setUploading(false)
     }
@@ -122,7 +124,7 @@ export default function Profile() {
       })
 
       if (error) {
-        throw error
+        throw new Error(error.message)
       }
 
       toast.success('Perfil atualizado com sucesso!')
@@ -130,7 +132,9 @@ export default function Profile() {
       // Reload to ensure everything is synced
       loadProfile()
     } catch (error: any) {
-      console.error(error)
+      // Sanitize error before logging
+      const errorMessage = error.message || 'Erro desconhecido'
+      console.error('Update profile error:', errorMessage)
       toast.error('Falha ao atualizar perfil.')
     } finally {
       setSaving(false)

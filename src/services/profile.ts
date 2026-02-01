@@ -36,7 +36,9 @@ export async function uploadAvatar(userId: string, file: File) {
     })
 
   if (uploadError) {
-    throw uploadError
+    // Sanitize error to prevent "FormData object could not be cloned" errors in the environment
+    // We create a new Error object with just the message string to ensure it's serializable
+    throw new Error(uploadError.message)
   }
 
   const { data } = supabase.storage.from('avatars').getPublicUrl(filePath)
