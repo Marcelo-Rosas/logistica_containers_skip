@@ -81,7 +81,8 @@ export const getContainer = async (id: string): Promise<Container> => {
     .select(
       `
       *,
-      consignee:customers(*),
+      consignee:customers!containers_consignee_id_fkey(*),
+      notify:customers!containers_notify_id_fkey(*),
       supplier:suppliers(*),
       warehouse:warehouses(*),
       storage_location:storage_locations(*),

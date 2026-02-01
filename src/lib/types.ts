@@ -83,6 +83,7 @@ export type Container = {
   // Relations (IDs)
   organization_id: string
   consignee_id?: string | null
+  notify_id?: string | null
   supplier_id?: string | null
   warehouse_id?: string | null
   storage_location_id?: string | null
@@ -107,6 +108,7 @@ export type Container = {
 
   // Extended Data (Joined)
   consignee?: Client
+  notify?: Client
   supplier?: Supplier
   warehouse?: Warehouse
   storage_location?: StorageLocation
@@ -149,6 +151,7 @@ export type InventoryItem = ContainerItem & {
   unit_volume_m3: number
   unit_net_weight_kg: number
   total_net_weight_kg: number
+  unit_value: 0
 }
 
 export type LogisticsEvent = {
