@@ -36,6 +36,7 @@ import {
   Edit,
   MapPin,
   Warehouse,
+  AlertCircle,
 } from 'lucide-react'
 import { NewExitEventDialog } from '@/components/NewExitEventDialog'
 import { ContainerFormDialog } from '@/components/ContainerFormDialog'
@@ -58,6 +59,13 @@ export default function ContainerDetails() {
     try {
       setLoading(true)
       const containerData = await getContainer(id)
+
+      if (!containerData) {
+        setContainer(null)
+        setLoading(false)
+        return
+      }
+
       setContainer(containerData)
 
       const [itemsData, eventsData] = await Promise.all([
@@ -93,7 +101,26 @@ export default function ContainerDetails() {
     )
   }
 
-  if (!container) return <div className="p-8">Container não encontrado.</div>
+  if (!container) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4 p-8 animate-fade-in">
+        <div className="bg-muted p-4 rounded-full">
+          <AlertCircle className="h-12 w-12 text-muted-foreground" />
+        </div>
+        <h2 className="text-2xl font-bold text-center">
+          Container não encontrado
+        </h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          O container que você está procurando não existe ou foi removido.
+          Verifique o identificador e tente novamente.
+        </p>
+        <Button onClick={() => navigate('/containers')} className="mt-4">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Voltar para Containers
+        </Button>
+      </div>
+    )
+  }
 
   const strategy = container.active_strategy || 'VOLUME'
   const occupancyPercentage = container.occupancy_rate || 0

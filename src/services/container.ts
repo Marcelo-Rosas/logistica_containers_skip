@@ -75,7 +75,7 @@ export const getContainers = async (filters?: {
   return data as ContainerStats[]
 }
 
-export const getContainer = async (id: string): Promise<Container> => {
+export const getContainer = async (id: string): Promise<Container | null> => {
   const { data, error } = await supabase
     .from('containers')
     .select(
@@ -90,9 +90,10 @@ export const getContainer = async (id: string): Promise<Container> => {
     `,
     )
     .eq('id', id)
-    .single()
+    .maybeSingle()
 
   if (error) throw error
+  if (!data) return null
 
   // Fetch items to determine strategy and calculate occupancy
   const { data: items } = await supabase
